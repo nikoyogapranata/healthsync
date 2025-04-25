@@ -1,0 +1,38 @@
+<svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="400" fill="white" fill-opacity="0.01"/>
+  <path d="M200 350C282.843 350 350 282.843 350 200C350 117.157 282.843 50 200 50C117.157 50 50 117.157 50 200C50 282.843 117.157 350 200 350Z" fill="#E6FFF6" fill-opacity="0.5"/>
+  
+  <!-- Doctor -->
+  <rect x="100" y="120" width="80" height="100" rx="40" fill="#3FB6F6"/>
+  <rect x="115" y="220" width="50" height="60" fill="#3FB6F6"/>
+  <rect x="100" y="280" width="30" height="40" fill="#3FB6F6"/>
+  <rect x="150" y="280" width="30" height="40" fill="#3FB6F6"/>
+  <circle cx="125" cy="150" r="8" fill="white"/>
+  <circle cx="155" cy="150" r="8" fill="white"/>
+  <path d="M130 175C130 175 140 185 150 175" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Computer System -->
+  <rect x="220" y="140" width="120" height="80" rx="5" fill="#34D399"/>
+  <rect x="230" y="150" width="100" height="60" rx="2" fill="white"/>
+  <rect x="260" y="220" width="40" height="20" fill="#34D399"/>
+  <rect x="240" y="240" width="80" height="10" rx="2" fill="#34D399"/>
+  
+  <!-- Computer Screen Elements -->
+  <line x1="240" y1="165" x2="320" y2="165" stroke="#34D399" stroke-width="2" stroke-linecap="round"/>
+  <line x1="240" y1="180" x2="300" y2="180" stroke="#34D399" stroke-width="2" stroke-linecap="round"/>
+  <line x1="240" y1="195" x2="310" y2="195" stroke="#34D399" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Medical Data -->
+  <path d="M180 130L190 140L210 120" stroke="#3FB6F6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M180 160L190 170L210 150" stroke="#3FB6F6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Health Icons -->
+  <path d="M70 120C70 120 80 110 90 120C100 130 90 140 80 150C70 140 60 130 70 120Z" fill="#FF6B6B"/>
+  <circle cx="330" cy="110" r="15" fill="#FFD166"/>
+  <path d="M330 105V115" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <path d="M325 110H335" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Connection Lines -->
+  <path d="M190 200C190 200 210 220 240 200" stroke="#3FB6F6" stroke-width="2" stroke-dasharray="4 4"/>
+  <path d="M190 180C190 180 220 160 240 180" stroke="#3FB6F6" stroke-width="2" stroke-dasharray="4 4"/>
+</svg>
