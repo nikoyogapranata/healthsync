@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EyeIcon, EyeOffIcon } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { supabase } from "@/lib/supabase"
 
 export function RegistrationForm() {
   const [formData, setFormData] = useState({
@@ -24,8 +25,8 @@ export function RegistrationForm() {
     nationalId: "",
     phoneNumber: "",
     address: "",
-    role: "",
-    healthcareFacility: "",
+    gender: "",
+    bloodType: "",
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -137,9 +138,9 @@ export function RegistrationForm() {
       isValid = false
     }
 
-    // Validate role
-    if (!formData.role) {
-      newErrors.role = "Role must be selected"
+    // Validate gender
+    if (!formData.gender) {
+      newErrors.gender = "Gender is required"
       isValid = false
     }
 
@@ -163,34 +164,95 @@ export function RegistrationForm() {
     setIsLoading(true)
 
     try {
-      // Simulate registration process
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      // Step 1: Create user with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            full_name: formData.fullName,
+            role: "patient",
+            national_id: formData.nationalId,
+            date_of_birth: formData.dateOfBirth,
+            gender: formData.gender,
+            blood_type: formData.bloodType,
+            phone_number: formData.phoneNumber,
+            address: formData.address,
+          },
+        },
+      })
 
-      // Redirect to login page after successful registration
-      router.push("/login?registered=true")
-    } catch (err) {
+      if (authError) {
+        throw new Error(authError.message)
+      }
+
+      if (!authData.user) {
+        throw new Error("Failed to create user account")
+      }
+
+      // Check if email confirmation is required
+      if (!authData.session) {
+        // Email confirmation required - redirect to login with message
+        router.push(
+          "/login?registered=true&message=Registration successful! Please check your email and click the verification link, then sign in.",
+        )
+        return
+      }
+
+      // If no email confirmation required, proceed with database setup
+      await setupUserProfile(authData.user.id)
+
+      // Success! Redirect to patient dashboard
+      router.push("/dashboard?registered=true")
+    } catch (err: any) {
+      console.error("Registration error:", err)
       setErrors({
-        ...errors,
-        general: "An error occurred during registration. Please try again.",
+        general: err.message || "An error occurred during registration. Please try again.",
       })
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Healthcare facility options
-  const healthcareFacilityOptions = [
-    { value: "healthsync-hospital", label: "HealthSync General Hospital" },
-    { value: "city-medical", label: "City Medical Center" },
-    { value: "community-clinic", label: "Community Health Clinic" },
-    { value: "wellness-center", label: "Wellness Medical Center" },
-  ]
+  const setupUserProfile = async (userId: string) => {
+    // Insert into users table
+    const { error: userError } = await supabase.from("users").insert({
+      user_id: userId,
+      email: formData.email,
+      role: "patient",
+      created_at: new Date().toISOString(),
+    })
+
+    if (userError) {
+      console.error("User creation error:", userError)
+      throw new Error("Failed to create user record")
+    }
+
+    // Insert patient data into the patients table
+    const { error: patientError } = await supabase.from("patients").insert({
+      patient_id: crypto.randomUUID(),
+      user_id: userId,
+      full_name: formData.fullName,
+      national_id: formData.nationalId,
+      date_of_birth: formData.dateOfBirth,
+      gender: formData.gender,
+      blood_type: formData.bloodType || null,
+      phone_number: formData.phoneNumber,
+      address: formData.address,
+    })
+
+    if (patientError) {
+      console.error("Patient creation error:", patientError)
+      throw new Error("Failed to create patient profile")
+    }
+  }
 
   return (
     <div className="space-y-6">
       <div className="space-y-2 text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Create HealthSync Account</h1>
-        <p className="text-sm text-gray-500">Complete your information to create an account in the HealthSync system</p>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Create Patient Account</h1>
+        <p className="text-sm text-gray-500">Register as a patient to access HealthSync services</p>
       </div>
 
       {errors.general && (
@@ -320,41 +382,38 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="role">Select Role</Label>
-            <Select value={formData.role} onValueChange={(value) => handleSelectChange("role", value)}>
-              <SelectTrigger id="role" className={errors.role ? "border-red-500" : ""}>
-                <SelectValue placeholder="Select role" />
+            <Label htmlFor="gender">Gender</Label>
+            <Select value={formData.gender} onValueChange={(value) => handleSelectChange("gender", value)}>
+              <SelectTrigger id="gender" className={errors.gender ? "border-red-500" : ""}>
+                <SelectValue placeholder="Select gender" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="patient">Patient</SelectItem>
-                <SelectItem value="doctor">Doctor</SelectItem>
-                <SelectItem value="admin">Administrator</SelectItem>
-                <SelectItem value="director">Director</SelectItem>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
-            {errors.role && <p className="text-xs text-red-500">{errors.role}</p>}
+            {errors.gender && <p className="text-xs text-red-500">{errors.gender}</p>}
           </div>
 
-          {(formData.role === "doctor" || formData.role === "admin" || formData.role === "director") && (
-            <div className="space-y-2">
-              <Label htmlFor="healthcareFacility">Healthcare Facility</Label>
-              <Select
-                value={formData.healthcareFacility}
-                onValueChange={(value) => handleSelectChange("healthcareFacility", value)}
-              >
-                <SelectTrigger id="healthcareFacility">
-                  <SelectValue placeholder="Select healthcare facility" />
-                </SelectTrigger>
-                <SelectContent>
-                  {healthcareFacilityOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div className="space-y-2">
+            <Label htmlFor="bloodType">Blood Type (Optional)</Label>
+            <Select value={formData.bloodType} onValueChange={(value) => handleSelectChange("bloodType", value)}>
+              <SelectTrigger id="bloodType">
+                <SelectValue placeholder="Select blood type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="A+">A+</SelectItem>
+                <SelectItem value="A-">A-</SelectItem>
+                <SelectItem value="B+">B+</SelectItem>
+                <SelectItem value="B-">B-</SelectItem>
+                <SelectItem value="AB+">AB+</SelectItem>
+                <SelectItem value="AB-">AB-</SelectItem>
+                <SelectItem value="O+">O+</SelectItem>
+                <SelectItem value="O-">O-</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -391,7 +450,7 @@ export function RegistrationForm() {
           className="w-full bg-gradient-to-r from-[#3FB6F6] to-[#34D399] hover:from-[#3FB6F6] hover:to-[#2ebb85]"
           disabled={isLoading}
         >
-          {isLoading ? "Creating Account..." : "Create Account"}
+          {isLoading ? "Creating Account..." : "Create Patient Account"}
         </Button>
       </form>
 
