@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -26,6 +25,8 @@ export function LoginForm() {
     setError("")
 
     try {
+      console.log("Attempting login...")
+
       // Sign in with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
@@ -33,6 +34,7 @@ export function LoginForm() {
       })
 
       if (authError) {
+        console.error("Auth error:", authError)
         setError(authError.message)
         return
       }
@@ -42,37 +44,84 @@ export function LoginForm() {
         return
       }
 
-      // Get user profile from database
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("role, user_id")
-        .eq("user_id", authData.user.id)
-        .single()
+      console.log("Login successful, user:", authData.user.id)
 
-      if (userError) {
-        console.error("Error fetching user data:", userError)
+      // Wait a moment for the session to be established
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      // Try to get user profile from database with retry logic
+      let userData = null
+      let attempts = 0
+      const maxAttempts = 3
+
+      while (!userData && attempts < maxAttempts) {
+        attempts++
+        console.log(`Fetching user data, attempt ${attempts}...`)
+
+        const { data, error: userError } = await supabase
+          .from("users")
+          .select("role, user_id, email")
+          .eq("user_id", authData.user.id)
+          .single()
+
+        if (userError) {
+          console.error(`User data error (attempt ${attempts}):`, userError)
+          if (attempts === maxAttempts) {
+            console.log("Max attempts reached, creating user record...")
+            // If user doesn't exist after max attempts, create them as patient
+            const { error: insertError } = await supabase.from("users").insert({
+              user_id: authData.user.id,
+              email: authData.user.email,
+              role: "patient",
+            })
+
+            if (insertError) {
+              console.error("Error creating user:", insertError)
+              setError("Failed to create user profile. Please contact support.")
+              return
+            }
+
+            userData = { role: "patient", user_id: authData.user.id, email: authData.user.email }
+          } else {
+            // Wait before retry
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+          }
+        } else {
+          userData = data
+        }
+      }
+
+      if (!userData) {
         setError("Failed to fetch user profile. Please try again.")
         return
       }
 
+      console.log("User role:", userData.role)
+
       // Redirect based on user role
       switch (userData.role) {
         case "superadmin":
+          console.log("Redirecting to superadmin dashboard")
           router.push("/superadmin-dashboard")
           break
         case "admin":
+          console.log("Redirecting to admin dashboard")
           router.push("/admin-dashboard")
           break
         case "director":
+          console.log("Redirecting to director dashboard")
           router.push("/director-dashboard")
           break
         case "doctor":
+          console.log("Redirecting to doctor dashboard")
           router.push("/doctor-dashboard")
           break
         case "patient":
+          console.log("Redirecting to patient dashboard")
           router.push("/dashboard")
           break
         default:
+          console.log("Unknown role, redirecting to default dashboard")
           router.push("/dashboard")
       }
     } catch (err) {

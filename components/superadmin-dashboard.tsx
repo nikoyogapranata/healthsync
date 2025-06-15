@@ -20,6 +20,7 @@ import {
 import { toast } from "@/components/ui/use-toast"
 import { Users, UserPlus, Crown, BarChart3, Search, Edit, UserX, Shield, Eye, EyeOff } from "lucide-react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createAdminUser, createDirectorUser } from "@/app/actions/admin-actions"
 
 interface User {
   user_id: string
@@ -33,7 +34,7 @@ interface User {
 
 interface HealthcareFacility {
   healthcare_facility_id: string
-  facility_name: string
+  name: string
 }
 
 export function SuperadminDashboard() {
@@ -97,8 +98,8 @@ export function SuperadminDashboard() {
     try {
       const { data, error } = await supabase
         .from("healthcare_facilities")
-        .select("healthcare_facility_id, facility_name")
-        .order("facility_name")
+        .select("healthcare_facility_id, name")
+        .order("name")
 
       if (error) throw error
       setFacilities(data || [])
@@ -148,26 +149,26 @@ export function SuperadminDashboard() {
               .from("admins")
               .select(`
                 full_name,
-                healthcare_facilities(facility_name)
+                healthcare_facilities(name)
               `)
               .eq("user_id", user.user_id)
               .single()
             profileData = {
               full_name: data?.full_name,
-              healthcare_facility: data?.healthcare_facilities?.facility_name,
+              healthcare_facility: data?.healthcare_facilities?.name,
             }
           } else if (user.role === "director") {
             const { data } = await supabase
               .from("directors")
               .select(`
                 full_name,
-                healthcare_facilities(facility_name)
+                healthcare_facilities(name)
               `)
               .eq("user_id", user.user_id)
               .single()
             profileData = {
               full_name: data?.full_name,
-              healthcare_facility: data?.healthcare_facilities?.facility_name,
+              healthcare_facility: data?.healthcare_facilities?.name,
             }
           }
 
@@ -204,50 +205,23 @@ export function SuperadminDashboard() {
 
     setLoading(true)
     try {
-      // Create user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: adminForm.email,
-        password: adminForm.password,
-        options: {
-          data: {
-            full_name: adminForm.fullName,
-            role: "admin",
-          },
-        },
-      })
+      const result = await createAdminUser(adminForm)
 
-      if (authError) throw authError
-
-      if (authData.user) {
-        // Create user record
-        const { error: userError } = await supabase.from("users").insert({
-          user_id: authData.user.id,
-          email: adminForm.email,
-          role: "admin",
-          password: "managed_by_supabase_auth",
-        })
-
-        if (userError) throw userError
-
-        // Create admin record
-        const { error: adminError } = await supabase.from("admins").insert({
-          admin_id: crypto.randomUUID(),
-          user_id: authData.user.id,
-          healthcare_facility_id: adminForm.facilityId,
-          full_name: adminForm.fullName,
-          employee_id: `ADM-${Date.now()}`,
-        })
-
-        if (adminError) throw adminError
-
+      if (result.success) {
         toast({
           title: "Success",
-          description: "Admin created successfully",
+          description: result.message,
         })
 
         setAdminForm({ fullName: "", email: "", password: "", facilityId: "" })
         setShowCreateAdmin(false)
         if (showUsersTable) fetchUsers()
+      } else {
+        toast({
+          title: "Error",
+          description: result.message,
+          variant: "destructive",
+        })
       }
     } catch (error: any) {
       console.error("Error creating admin:", error)
@@ -273,49 +247,23 @@ export function SuperadminDashboard() {
 
     setLoading(true)
     try {
-      // Create user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: directorForm.email,
-        password: directorForm.password,
-        options: {
-          data: {
-            full_name: directorForm.fullName,
-            role: "director",
-          },
-        },
-      })
+      const result = await createDirectorUser(directorForm)
 
-      if (authError) throw authError
-
-      if (authData.user) {
-        // Create user record
-        const { error: userError } = await supabase.from("users").insert({
-          user_id: authData.user.id,
-          email: directorForm.email,
-          role: "director",
-          password: "managed_by_supabase_auth",
-        })
-
-        if (userError) throw userError
-
-        // Create director record
-        const { error: directorError } = await supabase.from("directors").insert({
-          director_id: crypto.randomUUID(),
-          user_id: authData.user.id,
-          healthcare_facility_id: directorForm.facilityId,
-          full_name: directorForm.fullName,
-        })
-
-        if (directorError) throw directorError
-
+      if (result.success) {
         toast({
           title: "Success",
-          description: "Director created successfully",
+          description: result.message,
         })
 
         setDirectorForm({ fullName: "", email: "", password: "", facilityId: "" })
         setShowCreateDirector(false)
         if (showUsersTable) fetchUsers()
+      } else {
+        toast({
+          title: "Error",
+          description: result.message,
+          variant: "destructive",
+        })
       }
     } catch (error: any) {
       console.error("Error creating director:", error)
@@ -513,7 +461,7 @@ export function SuperadminDashboard() {
                 <SelectContent>
                   {facilities.map((facility) => (
                     <SelectItem key={facility.healthcare_facility_id} value={facility.healthcare_facility_id}>
-                      {facility.facility_name}
+                      {facility.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -598,7 +546,7 @@ export function SuperadminDashboard() {
                 <SelectContent>
                   {facilities.map((facility) => (
                     <SelectItem key={facility.healthcare_facility_id} value={facility.healthcare_facility_id}>
-                      {facility.facility_name}
+                      {facility.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
