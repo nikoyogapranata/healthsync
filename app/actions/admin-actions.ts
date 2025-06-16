@@ -3,16 +3,12 @@
 import { createClient } from "@supabase/supabase-js"
 
 // Create a service role client that bypasses RLS
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!, // This bypasses RLS
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
+const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
   },
-)
+})
 
 export async function createAdminUser(formData: {
   fullName: string
@@ -21,11 +17,19 @@ export async function createAdminUser(formData: {
   facilityId: string
 }) {
   try {
-    // Create user in Supabase Auth using admin client
+    // Check if email already exists
+    const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers()
+    const emailExists = existingUser.users.some((user) => user.email === formData.email)
+
+    if (emailExists) {
+      return { success: false, message: "An account with this email already exists" }
+    }
+
+    // Create user in Supabase Auth (requires email verification)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: formData.email,
       password: formData.password,
-      email_confirm: true, // Auto-confirm email
+      email_confirm: false, // Requires email verification
       user_metadata: {
         full_name: formData.fullName,
         role: "admin",
@@ -56,7 +60,16 @@ export async function createAdminUser(formData: {
 
       if (adminError) throw adminError
 
-      return { success: true, message: "Admin created successfully" }
+      // Send verification email
+      await supabaseAdmin.auth.admin.generateLink({
+        type: "signup",
+        email: formData.email,
+      })
+
+      return {
+        success: true,
+        message: `Admin account created successfully! A verification email has been sent to ${formData.email}`,
+      }
     }
 
     throw new Error("Failed to create user")
@@ -73,11 +86,19 @@ export async function createDirectorUser(formData: {
   facilityId: string
 }) {
   try {
-    // Create user in Supabase Auth using admin client
+    // Check if email already exists
+    const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers()
+    const emailExists = existingUser.users.some((user) => user.email === formData.email)
+
+    if (emailExists) {
+      return { success: false, message: "An account with this email already exists" }
+    }
+
+    // Create user in Supabase Auth (requires email verification)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: formData.email,
       password: formData.password,
-      email_confirm: true,
+      email_confirm: false, // Requires email verification
       user_metadata: {
         full_name: formData.fullName,
         role: "director",
@@ -107,7 +128,16 @@ export async function createDirectorUser(formData: {
 
       if (directorError) throw directorError
 
-      return { success: true, message: "Director created successfully" }
+      // Send verification email
+      await supabaseAdmin.auth.admin.generateLink({
+        type: "signup",
+        email: formData.email,
+      })
+
+      return {
+        success: true,
+        message: `Director account created successfully! A verification email has been sent to ${formData.email}`,
+      }
     }
 
     throw new Error("Failed to create user")

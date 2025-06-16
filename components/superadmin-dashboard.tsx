@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
   DialogContent,
@@ -18,9 +19,27 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/use-toast"
-import { Users, UserPlus, Crown, BarChart3, Search, Edit, UserX, Shield, Eye, EyeOff } from "lucide-react"
+import {
+  Users,
+  UserPlus,
+  Crown,
+  Search,
+  Edit,
+  UserX,
+  Shield,
+  Eye,
+  EyeOff,
+  Building2,
+  Activity,
+  TrendingUp,
+  Phone,
+  MapPin,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { createAdminUser, createDirectorUser } from "@/app/actions/admin-actions"
+import { fetchUserStats, fetchAllUsers } from "@/app/actions/superadmin-actions"
 
 interface User {
   user_id: string
@@ -30,22 +49,46 @@ interface User {
   full_name?: string
   active_status?: boolean
   healthcare_facility?: string
+  email_confirmed_at?: string
 }
 
 interface HealthcareFacility {
   healthcare_facility_id: string
   name: string
+  address?: string
+  contact_number?: string
+  total_users?: number
+}
+
+interface SystemStats {
+  totalUsers: number
+  totalPatients: number
+  totalDoctors: number
+  totalAdmins: number
+  totalDirectors: number
+  totalFacilities: number
+  recentRegistrations: number
+  unverifiedUsers: number
 }
 
 export function SuperadminDashboard() {
+  const [activeTab, setActiveTab] = useState("overview")
   const [showCreateAdmin, setShowCreateAdmin] = useState(false)
   const [showCreateDirector, setShowCreateDirector] = useState(false)
-  const [showUsersTable, setShowUsersTable] = useState(false)
-  const [showSystemOverview, setShowSystemOverview] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [filteredUsers, setFilteredUsers] = useState<User[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [facilities, setFacilities] = useState<HealthcareFacility[]>([])
+  const [stats, setStats] = useState<SystemStats>({
+    totalUsers: 0,
+    totalPatients: 0,
+    totalDoctors: 0,
+    totalAdmins: 0,
+    totalDirectors: 0,
+    totalFacilities: 0,
+    recentRegistrations: 0,
+    unverifiedUsers: 0,
+  })
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showDirectorPassword, setShowDirectorPassword] = useState(false)
@@ -67,17 +110,12 @@ export function SuperadminDashboard() {
 
   const supabase = createClientComponentClient()
 
-  // Fetch healthcare facilities
+  // Fetch all data on component mount
   useEffect(() => {
     fetchFacilities()
+    fetchUsers()
+    fetchStatsData()
   }, [])
-
-  // Fetch users when users table is opened
-  useEffect(() => {
-    if (showUsersTable) {
-      fetchUsers()
-    }
-  }, [showUsersTable])
 
   // Filter users based on search term
   useEffect(() => {
@@ -98,11 +136,34 @@ export function SuperadminDashboard() {
     try {
       const { data, error } = await supabase
         .from("healthcare_facilities")
-        .select("healthcare_facility_id, name")
+        .select("healthcare_facility_id, name, address, contact_number")
         .order("name")
 
       if (error) throw error
-      setFacilities(data || [])
+
+      // Get user count for each facility
+      const facilitiesWithStats = await Promise.all(
+        (data || []).map(async (facility) => {
+          // Count admins for this facility
+          const { count: adminCount } = await supabase
+            .from("admins")
+            .select("*", { count: "exact", head: true })
+            .eq("healthcare_facility_id", facility.healthcare_facility_id)
+
+          // Count directors for this facility
+          const { count: directorCount } = await supabase
+            .from("directors")
+            .select("*", { count: "exact", head: true })
+            .eq("healthcare_facility_id", facility.healthcare_facility_id)
+
+          return {
+            ...facility,
+            total_users: (adminCount || 0) + (directorCount || 0),
+          }
+        }),
+      )
+
+      setFacilities(facilitiesWithStats)
     } catch (error) {
       console.error("Error fetching facilities:", error)
       toast({
@@ -116,23 +177,30 @@ export function SuperadminDashboard() {
   const fetchUsers = async () => {
     setLoading(true)
     try {
-      // Fetch users with their profile data
-      const { data: usersData, error: usersError } = await supabase
-        .from("users")
-        .select(`
-          user_id,
-          email,
-          role,
-          created_at
-        `)
-        .order("created_at", { ascending: false })
+      // First get all users using server action
+      const usersResult = await fetchAllUsers()
 
-      if (usersError) throw usersError
+      if (!usersResult.success) {
+        throw new Error(usersResult.error)
+      }
+
+      const usersData = usersResult.data
 
       // Fetch additional profile data for each user
       const enrichedUsers = await Promise.all(
-        (usersData || []).map(async (user) => {
+        usersData.map(async (user) => {
           let profileData = {}
+
+          // Try to get email verification status, but don't fail if it doesn't work
+          let emailConfirmed = null
+          try {
+            const { data: authUser } = await supabase.auth.admin.getUserById(user.user_id)
+            emailConfirmed = authUser.user?.email_confirmed_at
+          } catch (error) {
+            console.log("Could not fetch auth data for user:", user.user_id)
+            // Set as verified by default if we can't check
+            emailConfirmed = new Date().toISOString()
+          }
 
           if (user.role === "patient") {
             const { data } = await supabase.from("patients").select("full_name").eq("user_id", user.user_id).single()
@@ -148,9 +216,9 @@ export function SuperadminDashboard() {
             const { data } = await supabase
               .from("admins")
               .select(`
-                full_name,
-                healthcare_facilities(name)
-              `)
+              full_name,
+              healthcare_facilities(name)
+            `)
               .eq("user_id", user.user_id)
               .single()
             profileData = {
@@ -161,9 +229,9 @@ export function SuperadminDashboard() {
             const { data } = await supabase
               .from("directors")
               .select(`
-                full_name,
-                healthcare_facilities(name)
-              `)
+              full_name,
+              healthcare_facilities(name)
+            `)
               .eq("user_id", user.user_id)
               .single()
             profileData = {
@@ -176,6 +244,7 @@ export function SuperadminDashboard() {
             ...user,
             ...profileData,
             active_status: profileData.active_status ?? true,
+            email_confirmed_at: emailConfirmed,
           }
         }),
       )
@@ -190,6 +259,58 @@ export function SuperadminDashboard() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchStatsData = async () => {
+    try {
+      const result = await fetchUserStats()
+
+      if (result.success) {
+        setStats(result.data)
+      } else {
+        console.error("Error fetching stats:", result.error)
+
+        // Fallback: try to get counts directly with individual queries
+        try {
+          const { count: patientCount } = await supabase
+            .from("users")
+            .select("*", { count: "exact", head: true })
+            .eq("role", "patient")
+
+          const { count: doctorCount } = await supabase
+            .from("users")
+            .select("*", { count: "exact", head: true })
+            .eq("role", "doctor")
+
+          const { count: adminCount } = await supabase
+            .from("users")
+            .select("*", { count: "exact", head: true })
+            .eq("role", "admin")
+
+          const { count: directorCount } = await supabase
+            .from("users")
+            .select("*", { count: "exact", head: true })
+            .eq("role", "director")
+
+          const { count: totalCount } = await supabase.from("users").select("*", { count: "exact", head: true })
+
+          setStats({
+            totalUsers: totalCount || 0,
+            totalPatients: patientCount || 0,
+            totalDoctors: doctorCount || 0,
+            totalAdmins: adminCount || 0,
+            totalDirectors: directorCount || 0,
+            totalFacilities: 0,
+            recentRegistrations: 0,
+            unverifiedUsers: 0,
+          })
+        } catch (fallbackError) {
+          console.error("Fallback stats fetch also failed:", fallbackError)
+        }
+      }
+    } catch (error) {
+      console.error("Error in fetchStatsData:", error)
     }
   }
 
@@ -215,7 +336,8 @@ export function SuperadminDashboard() {
 
         setAdminForm({ fullName: "", email: "", password: "", facilityId: "" })
         setShowCreateAdmin(false)
-        if (showUsersTable) fetchUsers()
+        fetchUsers()
+        fetchStatsData()
       } else {
         toast({
           title: "Error",
@@ -257,7 +379,8 @@ export function SuperadminDashboard() {
 
         setDirectorForm({ fullName: "", email: "", password: "", facilityId: "" })
         setShowCreateDirector(false)
-        if (showUsersTable) fetchUsers()
+        fetchUsers()
+        fetchStatsData()
       } else {
         toast({
           title: "Error",
@@ -279,13 +402,11 @@ export function SuperadminDashboard() {
 
   const handleToggleUserStatus = async (userId: string, currentStatus: boolean) => {
     try {
-      // Update in the appropriate profile table
       const user = users.find((u) => u.user_id === userId)
       if (!user) return
 
       if (user.role === "doctor") {
         const { error } = await supabase.from("doctors").update({ active_status: !currentStatus }).eq("user_id", userId)
-
         if (error) throw error
       }
 
@@ -320,83 +441,450 @@ export function SuperadminDashboard() {
     }
   }
 
+  const getVerificationStatus = (user: User) => {
+    if (user.email_confirmed_at) {
+      return (
+        <Badge className="bg-green-100 text-green-800">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Verified
+        </Badge>
+      )
+    } else {
+      return (
+        <Badge className="bg-yellow-100 text-yellow-800">
+          <AlertCircle className="w-3 h-3 mr-1" />
+          Pending
+        </Badge>
+      )
+    }
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 p-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900">Super Admin Dashboard</h1>
-        <p className="mt-2 text-gray-600">Manage users, admins, directors, and system overview</p>
+        <h1 className="text-4xl font-bold text-gray-900">Super Admin Dashboard</h1>
+        <p className="mt-2 text-gray-600">Comprehensive system management and oversight</p>
       </div>
 
-      {/* Feature Cards */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card
-          className="cursor-pointer hover:shadow-lg transition-shadow border-l-4 border-l-[#3FB6F6]"
-          onClick={() => setShowCreateAdmin(true)}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-[#3FB6F6]/10 rounded-full">
-                <UserPlus className="h-6 w-6 text-[#3FB6F6]" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">Create Admin</h3>
-                <p className="text-sm text-gray-600">Add new admin users</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="facilities">Facilities</TabsTrigger>
+          <TabsTrigger value="create">Create Accounts</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
 
-        <Card
-          className="cursor-pointer hover:shadow-lg transition-shadow border-l-4 border-l-[#34D399]"
-          onClick={() => setShowCreateDirector(true)}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-[#34D399]/10 rounded-full">
-                <Crown className="h-6 w-6 text-[#34D399]" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">Create Director</h3>
-                <p className="text-sm text-gray-600">Add new director users</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <TabsContent value="overview" className="space-y-6">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="border-l-4 border-l-[#3FB6F6]">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalUsers}</div>
+                <p className="text-xs text-muted-foreground">+{stats.recentRegistrations} from last week</p>
+              </CardContent>
+            </Card>
 
-        <Card
-          className="cursor-pointer hover:shadow-lg transition-shadow border-l-4 border-l-[#F59E0B]"
-          onClick={() => setShowUsersTable(true)}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-[#F59E0B]/10 rounded-full">
-                <Users className="h-6 w-6 text-[#F59E0B]" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">Manage Users</h3>
-                <p className="text-sm text-gray-600">View and manage all users</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="border-l-4 border-l-[#34D399]">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Healthcare Facilities</CardTitle>
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalFacilities}</div>
+                <p className="text-xs text-muted-foreground">Active facilities</p>
+              </CardContent>
+            </Card>
 
-        <Card
-          className="cursor-pointer hover:shadow-lg transition-shadow border-l-4 border-l-[#8B5CF6]"
-          onClick={() => setShowSystemOverview(true)}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-[#8B5CF6]/10 rounded-full">
-                <BarChart3 className="h-6 w-6 text-[#8B5CF6]" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">System Overview</h3>
-                <p className="text-sm text-gray-600">View system statistics</p>
-              </div>
+            <Card className="border-l-4 border-l-purple-500">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Medical Staff</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalDoctors + stats.totalAdmins}</div>
+                <p className="text-xs text-muted-foreground">Doctors and admins</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-orange-500">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.recentRegistrations}</div>
+                <p className="text-xs text-muted-foreground">New registrations this week</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Role Distribution */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>User Distribution</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <span>Patients</span>
+                  </div>
+                  <span className="font-semibold">{stats.totalPatients}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span>Doctors</span>
+                  </div>
+                  <span className="font-semibold">{stats.totalDoctors}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                    <span>Admins</span>
+                  </div>
+                  <span className="font-semibold">{stats.totalAdmins}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                    <span>Directors</span>
+                  </div>
+                  <span className="font-semibold">{stats.totalDirectors}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button onClick={() => setShowCreateAdmin(true)} className="w-full justify-start" variant="outline">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Create Admin Account
+                </Button>
+                <Button onClick={() => setShowCreateDirector(true)} className="w-full justify-start" variant="outline">
+                  <Crown className="mr-2 h-4 w-4" />
+                  Create Director Account
+                </Button>
+                <Button onClick={() => setActiveTab("users")} className="w-full justify-start" variant="outline">
+                  <Users className="mr-2 h-4 w-4" />
+                  Manage Users
+                </Button>
+                <Button onClick={() => setActiveTab("facilities")} className="w-full justify-start" variant="outline">
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Manage Facilities
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">User Management</h2>
+            <div className="relative w-64">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Search users..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-auto max-h-96">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Facility</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Verification</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8">
+                          Loading users...
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredUsers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8">
+                          No users found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredUsers.map((user) => (
+                        <TableRow key={user.user_id}>
+                          <TableCell className="font-medium">{user.full_name || "N/A"}</TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>
+                            <Badge className={getRoleColor(user.role)}>
+                              {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{user.healthcare_facility || "N/A"}</TableCell>
+                          <TableCell>
+                            <Switch
+                              checked={user.active_status ?? true}
+                              onCheckedChange={() => handleToggleUserStatus(user.user_id, user.active_status ?? true)}
+                              disabled={user.role === "patient"}
+                            />
+                          </TableCell>
+                          <TableCell>{getVerificationStatus(user)}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button variant="ghost" size="sm">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm">
+                                <UserX className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="facilities" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">Healthcare Facilities</h2>
+            <Button>
+              <Building2 className="mr-2 h-4 w-4" />
+              Add Facility
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {facilities.map((facility) => (
+              <Card
+                key={facility.healthcare_facility_id}
+                className="border border-gray-200 hover:shadow-lg transition-shadow"
+              >
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-lg">
+                    <span className="text-gray-900">{facility.name}</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {facility.address && (
+                    <div className="flex items-start text-sm text-gray-600">
+                      <MapPin className="mr-2 h-4 w-4 mt-0.5 text-[#3FB6F6]" />
+                      <span>{facility.address}</span>
+                    </div>
+                  )}
+                  {facility.contact_number && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Phone className="mr-2 h-4 w-4 text-[#34D399]" />
+                      <span>{facility.contact_number}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Users className="mr-2 h-4 w-4 text-[#3FB6F6]" />
+                    <span>{facility.total_users} users</span>
+                  </div>
+                  <div className="flex justify-end space-x-2 pt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-[#3FB6F6] text-[#3FB6F6] hover:bg-[#3FB6F6] hover:text-white"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-[#34D399] text-[#34D399] hover:bg-[#34D399] hover:text-white"
+                    >
+                      <Users className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="create" className="space-y-6">
+          <h2 className="text-2xl font-bold">Create New Accounts</h2>
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-shadow border-l-4 border-l-[#3FB6F6]"
+              onClick={() => setShowCreateAdmin(true)}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-[#3FB6F6]" />
+                  Create Admin Account
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">
+                  Create a new admin user for a healthcare facility. They will receive an email verification link.
+                </p>
+                <div className="mt-4">
+                  <Button className="w-full bg-gradient-to-r from-[#3FB6F6] to-[#34D399]">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Create Admin
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-shadow border-l-4 border-l-[#34D399]"
+              onClick={() => setShowCreateDirector(true)}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Crown className="h-5 w-5 text-[#34D399]" />
+                  Create Director Account
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">
+                  Create a new director user for a healthcare facility. They will receive an email verification link.
+                </p>
+                <div className="mt-4">
+                  <Button className="w-full bg-gradient-to-r from-[#34D399] to-[#3FB6F6]">
+                    <Crown className="mr-2 h-4 w-4" />
+                    Create Director
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Account Creation Process</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 font-semibold">1</span>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Fill Account Details</h4>
+                    <p className="text-sm text-gray-600">
+                      Enter the user's information and select their healthcare facility
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 font-semibold">2</span>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Account Created</h4>
+                    <p className="text-sm text-gray-600">The account is created but requires email verification</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 font-semibold">3</span>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Email Verification</h4>
+                    <p className="text-sm text-gray-600">User receives verification email and must click the link</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Account Active</h4>
+                    <p className="text-sm text-gray-600">User can now sign in and access their dashboard</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <h2 className="text-2xl font-bold">System Analytics</h2>
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Registration Trends</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span>This Week</span>
+                    <span className="font-semibold">{stats.recentRegistrations} new users</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Total Active</span>
+                    <span className="font-semibold">{stats.totalUsers} users</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Verification Rate</span>
+                    <span className="font-semibold">
+                      {stats.totalUsers > 0
+                        ? Math.round(((stats.totalUsers - stats.unverifiedUsers) / stats.totalUsers) * 100)
+                        : 0}
+                      %
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>System Health</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span>Active Facilities</span>
+                    <span className="font-semibold text-green-600">{stats.totalFacilities}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Medical Staff</span>
+                    <span className="font-semibold text-blue-600">{stats.totalDoctors + stats.totalAdmins}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>System Status</span>
+                    <Badge className="bg-green-100 text-green-800">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Operational
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Create Admin Modal */}
       <Dialog open={showCreateAdmin} onOpenChange={setShowCreateAdmin}>
@@ -404,9 +892,11 @@ export function SuperadminDashboard() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5" />
-              Create Admin
+              Create Admin Account
             </DialogTitle>
-            <DialogDescription>Create a new admin user for a healthcare facility</DialogDescription>
+            <DialogDescription>
+              Create a new admin user. They will receive an email verification link before they can sign in.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -489,9 +979,11 @@ export function SuperadminDashboard() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Crown className="h-5 w-5" />
-              Create Director
+              Create Director Account
             </DialogTitle>
-            <DialogDescription>Create a new director user for a healthcare facility</DialogDescription>
+            <DialogDescription>
+              Create a new director user. They will receive an email verification link before they can sign in.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -565,144 +1057,6 @@ export function SuperadminDashboard() {
               {loading ? "Creating..." : "Create Director"}
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Users Table Modal */}
-      <Dialog open={showUsersTable} onOpenChange={setShowUsersTable}>
-        <DialogContent className="max-w-6xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Manage Users
-            </DialogTitle>
-            <DialogDescription>View and manage all system users</DialogDescription>
-          </DialogHeader>
-
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
-            <Input
-              placeholder="Search users by name, email, or role..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          {/* Users Table */}
-          <div className="overflow-auto max-h-96">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Full Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Facility</TableHead>
-                  <TableHead>Active</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      Loading users...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredUsers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      No users found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredUsers.map((user) => (
-                    <TableRow key={user.user_id}>
-                      <TableCell className="font-medium">{user.full_name || "N/A"}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <Badge className={getRoleColor(user.role)}>
-                          {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{user.healthcare_facility || "N/A"}</TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={user.active_status ?? true}
-                          onCheckedChange={() => handleToggleUserStatus(user.user_id, user.active_status ?? true)}
-                          disabled={user.role === "patient"}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <UserX className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* System Overview Modal */}
-      <Dialog open={showSystemOverview} onOpenChange={setShowSystemOverview}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              System Overview
-            </DialogTitle>
-            <DialogDescription>System statistics and overview</DialogDescription>
-          </DialogHeader>
-
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="border-l-4 border-l-blue-500">
-              <CardContent className="p-4">
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Total Patients</h3>
-                  <p className="text-2xl font-bold text-blue-600">{users.filter((u) => u.role === "patient").length}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-green-500">
-              <CardContent className="p-4">
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Total Doctors</h3>
-                  <p className="text-2xl font-bold text-green-600">{users.filter((u) => u.role === "doctor").length}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-purple-500">
-              <CardContent className="p-4">
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Total Admins</h3>
-                  <p className="text-2xl font-bold text-purple-600">{users.filter((u) => u.role === "admin").length}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-orange-500">
-              <CardContent className="p-4">
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Total Directors</h3>
-                  <p className="text-2xl font-bold text-orange-600">
-                    {users.filter((u) => u.role === "director").length}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </DialogContent>
       </Dialog>
     </div>

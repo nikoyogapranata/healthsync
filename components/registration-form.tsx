@@ -3,492 +3,328 @@
 import type React from "react"
 
 import { useState } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { EyeIcon, EyeOffIcon } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase"
+import { Eye, EyeOff, Mail } from "lucide-react"
+import { registerPatient } from "@/app/actions/patient-registration"
 
 export function RegistrationForm() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     password: "",
     confirmPassword: "",
-    dateOfBirth: "",
-    nationalId: "",
     phoneNumber: "",
-    address: "",
+    dateOfBirth: "",
     gender: "",
     bloodType: "",
+    address: "",
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [agreeToTerms, setAgreeToTerms] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [successMessage, setSuccessMessage] = useState("")
-  const router = useRouter()
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword)
-  }
-
-  const toggleConfirmPasswordVisibility = () => {
-    setShowConfirmPassword(!showConfirmPassword)
-  }
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+  const [showVerificationMessage, setShowVerificationMessage] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData({
-      ...formData,
-      [name]: value,
-    })
-
-    // Clear error when user types
-    if (errors[name]) {
-      setErrors({
-        ...errors,
-        [name]: "",
-      })
-    }
+    setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData({
-      ...formData,
-      [name]: value,
-    })
-
-    // Clear error when user selects
-    if (errors[name]) {
-      setErrors({
-        ...errors,
-        [name]: "",
-      })
-    }
-  }
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {}
-    let isValid = true
-
-    // Validate name
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = "Full name is required"
-      isValid = false
-    }
-
-    // Validate email
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required"
-      isValid = false
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Invalid email format"
-      isValid = false
-    }
-
-    // Validate password
-    if (!formData.password) {
-      newErrors.password = "Password is required"
-      isValid = false
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters"
-      isValid = false
-    }
-
-    // Validate confirm password
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match"
-      isValid = false
-    }
-
-    // Validate birth date
-    if (!formData.dateOfBirth) {
-      newErrors.dateOfBirth = "Date of birth is required"
-      isValid = false
-    }
-
-    // Validate National ID
-    if (!formData.nationalId.trim()) {
-      newErrors.nationalId = "National ID is required"
-      isValid = false
-    } else if (!/^\d{16}$/.test(formData.nationalId)) {
-      newErrors.nationalId = "National ID must be 16 digits"
-      isValid = false
-    }
-
-    // Validate phone number
-    if (!formData.phoneNumber.trim()) {
-      newErrors.phoneNumber = "Phone number is required"
-      isValid = false
-    } else if (!/^[0-9]{10,13}$/.test(formData.phoneNumber)) {
-      newErrors.phoneNumber = "Invalid phone number"
-      isValid = false
-    }
-
-    // Validate address
-    if (!formData.address.trim()) {
-      newErrors.address = "Address is required"
-      isValid = false
-    }
-
-    // Validate gender
-    if (!formData.gender) {
-      newErrors.gender = "Gender is required"
-      isValid = false
-    }
-
-    // Validate terms agreement
-    if (!agreeToTerms) {
-      newErrors.agreeToTerms = "You must agree to the terms and conditions"
-      isValid = false
-    }
-
-    setErrors(newErrors)
-    return isValid
+    setFormData({ ...formData, [name]: value })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsLoading(true)
+    setError("")
+    setSuccess("")
 
-    if (!validateForm()) {
+    // Validation
+    if (!formData.fullName.trim()) {
+      setError("Full name is required")
+      setIsLoading(false)
       return
     }
 
-    setIsLoading(true)
-    setErrors({})
-    setSuccessMessage("")
+    if (!formData.email.trim()) {
+      setError("Email is required")
+      setIsLoading(false)
+      return
+    }
+
+    if (!formData.password) {
+      setError("Password is required")
+      setIsLoading(false)
+      return
+    }
+
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters long")
+      setIsLoading(false)
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match")
+      setIsLoading(false)
+      return
+    }
 
     try {
-      console.log("Starting registration process...")
+      console.log("Submitting registration via server action...")
 
-      // Step 1: Create user with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const result = await registerPatient({
+        fullName: formData.fullName,
         email: formData.email,
         password: formData.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: {
-            full_name: formData.fullName,
-            role: "patient",
-            national_id: formData.nationalId,
-            date_of_birth: formData.dateOfBirth,
-            gender: formData.gender,
-            blood_type: formData.bloodType,
-            phone_number: formData.phoneNumber,
-            address: formData.address,
-          },
-        },
+        phoneNumber: formData.phoneNumber,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        bloodType: formData.bloodType,
+        address: formData.address,
       })
 
-      console.log("Auth signup result:", { authData, authError })
-
-      if (authError) {
-        throw new Error(authError.message)
+      if (!result.success) {
+        setError(result.message)
+        return
       }
 
-      if (!authData.user) {
-        throw new Error("Failed to create user account")
-      }
+      console.log("Registration successful!")
+      setSuccess(result.message)
+      setShowVerificationMessage(true)
 
-      if (authData.session) {
-        // User is immediately authenticated (email confirmation disabled)
-        console.log("User authenticated immediately, setting up profile...")
-        await setupUserProfile(authData.user.id)
-        setSuccessMessage("Registration successful! Redirecting to sign in page...")
-        setTimeout(() => {
-          router.push("/login?registered=true&message=Registration successful! Please sign in with your credentials.")
-        }, 2000)
-      } else {
-        // Email confirmation required
-        console.log("Email confirmation required")
-        setSuccessMessage(
-          "Registration successful! Please check your email and click the verification link, then sign in.",
-        )
-        setTimeout(() => {
-          router.push("/login?registered=true&message=Please check your email and verify your account, then sign in.")
-        }, 3000)
-      }
+      // Clear form
+      setFormData({
+        fullName: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+        phoneNumber: "",
+        dateOfBirth: "",
+        gender: "",
+        bloodType: "",
+        address: "",
+      })
     } catch (err: any) {
       console.error("Registration error:", err)
-      setErrors({
-        general: err.message || "An error occurred during registration. Please try again.",
-      })
+      setError("An unexpected error occurred. Please try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const setupUserProfile = async (userId: string) => {
-    try {
-      console.log("Setting up user profile for:", userId)
+  if (showVerificationMessage) {
+    return (
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+            <Mail className="h-6 w-6 text-green-600" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>
+          <CardDescription>We've sent you a verification link</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert className="bg-green-50 text-green-800 border-green-200">
+            <AlertDescription className="text-center">{success}</AlertDescription>
+          </Alert>
 
-      // Insert into users table
-      const { error: userError } = await supabase.from("users").insert({
-        user_id: userId,
-        email: formData.email,
-        role: "patient",
-        created_at: new Date().toISOString(),
-      })
+          <div className="text-center space-y-4">
+            <p className="text-sm text-gray-600">
+              Please check your email inbox and click the verification link to activate your account.
+            </p>
+            <p className="text-xs text-gray-500">Don't see the email? Check your spam folder or contact support.</p>
+          </div>
 
-      if (userError && !userError.message.includes("duplicate")) {
-        console.error("User creation error:", userError)
-        throw new Error("Failed to create user record")
-      }
-
-      // Insert patient data into the patients table
-      const { error: patientError } = await supabase.from("patients").insert({
-        patient_id: crypto.randomUUID(),
-        user_id: userId,
-        full_name: formData.fullName,
-        national_id: formData.nationalId,
-        date_of_birth: formData.dateOfBirth,
-        gender: formData.gender,
-        blood_type: formData.bloodType || null,
-        phone_number: formData.phoneNumber,
-        address: formData.address,
-      })
-
-      if (patientError && !patientError.message.includes("duplicate")) {
-        console.error("Patient creation error:", patientError)
-        throw new Error("Failed to create patient profile")
-      }
-
-      console.log("User profile setup completed successfully")
-    } catch (err) {
-      console.error("Profile setup error:", err)
-      throw err
-    }
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => setShowVerificationMessage(false)}>
+              Register Another Account
+            </Button>
+            <Button className="flex-1" onClick={() => router.push("/login")}>
+              Go to Sign In
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2 text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Create Patient Account</h1>
-        <p className="text-sm text-gray-500">Register as a patient to access HealthSync services</p>
-      </div>
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>Patient Registration</CardTitle>
+        <CardDescription>Create your account to access our healthcare services</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-      {errors.general && (
-        <Alert variant="destructive" className="bg-red-50 text-red-800 border-red-200">
-          <AlertDescription>{errors.general}</AlertDescription>
-        </Alert>
-      )}
-
-      {successMessage && (
-        <Alert className="bg-green-50 text-green-800 border-green-200">
-          <AlertDescription>{successMessage}</AlertDescription>
-        </Alert>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="fullName">Full Name</Label>
-            <Input
-              id="fullName"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              placeholder="Enter your full name"
-              className={errors.fullName ? "border-red-500" : ""}
-            />
-            {errors.fullName && <p className="text-xs text-red-500">{errors.fullName}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="name@example.com"
-              className={errors.email ? "border-red-500" : ""}
-            />
-            {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name</Label>
               <Input
-                id="password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                value={formData.password}
+                id="fullName"
+                name="fullName"
+                value={formData.fullName}
                 onChange={handleChange}
-                placeholder="••••••••"
-                className={errors.password ? "border-red-500" : ""}
+                placeholder="John Doe"
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 text-gray-500 hover:text-gray-700"
-                onClick={togglePasswordVisibility}
-              >
-                {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-                <span className="sr-only">{showPassword ? "Hide password" : "Show password"}</span>
-              </Button>
             </div>
-            {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
-            <div className="relative">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
-                value={formData.confirmPassword}
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
                 onChange={handleChange}
-                placeholder="••••••••"
-                className={errors.confirmPassword ? "border-red-500" : ""}
+                placeholder="your.email@example.com"
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 text-gray-500 hover:text-gray-700"
-                onClick={toggleConfirmPasswordVisibility}
-              >
-                {showConfirmPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-                <span className="sr-only">{showConfirmPassword ? "Hide password" : "Show password"}</span>
-              </Button>
             </div>
-            {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Enter your password"
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  placeholder="Repeat your password"
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber">Phone Number</Label>
+              <Input
+                id="phoneNumber"
+                name="phoneNumber"
+                type="tel"
+                value={formData.phoneNumber}
+                onChange={handleChange}
+                placeholder="+1 (555) 123-4567"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="dateOfBirth">Date of Birth</Label>
+              <Input
+                id="dateOfBirth"
+                name="dateOfBirth"
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="gender">Gender</Label>
+              <Select onValueChange={(value) => handleSelectChange("gender", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bloodType">Blood Type</Label>
+              <Select onValueChange={(value) => handleSelectChange("bloodType", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select blood type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="A+">A+</SelectItem>
+                  <SelectItem value="A-">A-</SelectItem>
+                  <SelectItem value="B+">B+</SelectItem>
+                  <SelectItem value="B-">B-</SelectItem>
+                  <SelectItem value="AB+">AB+</SelectItem>
+                  <SelectItem value="AB-">AB-</SelectItem>
+                  <SelectItem value="O+">O+</SelectItem>
+                  <SelectItem value="O-">O-</SelectItem>
+                  <SelectItem value="unknown">I don't know yet</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="dateOfBirth">Date of Birth</Label>
-            <Input
-              id="dateOfBirth"
-              name="dateOfBirth"
-              type="date"
-              value={formData.dateOfBirth}
+            <Label htmlFor="address">Address</Label>
+            <Textarea
+              id="address"
+              name="address"
+              value={formData.address}
               onChange={handleChange}
-              className={errors.dateOfBirth ? "border-red-500" : ""}
+              placeholder="Your full address"
+              rows={2}
             />
-            {errors.dateOfBirth && <p className="text-xs text-red-500">{errors.dateOfBirth}</p>}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="nationalId">National ID Number</Label>
-            <Input
-              id="nationalId"
-              name="nationalId"
-              value={formData.nationalId}
-              onChange={handleChange}
-              placeholder="Enter 16-digit National ID"
-              className={errors.nationalId ? "border-red-500" : ""}
-            />
-            {errors.nationalId && <p className="text-xs text-red-500">{errors.nationalId}</p>}
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? "Creating Account..." : "Create Account"}
+          </Button>
+
+          <div className="text-center">
+            <Button type="button" variant="link" onClick={() => router.push("/login")} disabled={isLoading}>
+              Already have an account? Sign in
+            </Button>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="phoneNumber">Phone Number</Label>
-            <Input
-              id="phoneNumber"
-              name="phoneNumber"
-              value={formData.phoneNumber}
-              onChange={handleChange}
-              placeholder="Enter phone number"
-              className={errors.phoneNumber ? "border-red-500" : ""}
-            />
-            {errors.phoneNumber && <p className="text-xs text-red-500">{errors.phoneNumber}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="gender">Gender</Label>
-            <Select value={formData.gender} onValueChange={(value) => handleSelectChange("gender", value)}>
-              <SelectTrigger id="gender" className={errors.gender ? "border-red-500" : ""}>
-                <SelectValue placeholder="Select gender" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.gender && <p className="text-xs text-red-500">{errors.gender}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="bloodType">Blood Type (Optional)</Label>
-            <Select value={formData.bloodType} onValueChange={(value) => handleSelectChange("bloodType", value)}>
-              <SelectTrigger id="bloodType">
-                <SelectValue placeholder="Select blood type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="A+">A+</SelectItem>
-                <SelectItem value="A-">A-</SelectItem>
-                <SelectItem value="B+">B+</SelectItem>
-                <SelectItem value="B-">B-</SelectItem>
-                <SelectItem value="AB+">AB+</SelectItem>
-                <SelectItem value="AB-">AB-</SelectItem>
-                <SelectItem value="O+">O+</SelectItem>
-                <SelectItem value="O-">O-</SelectItem>
-                <SelectItem value="Unknown">I don't know yet</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="address">Address</Label>
-          <Textarea
-            id="address"
-            name="address"
-            value={formData.address}
-            onChange={handleChange}
-            placeholder="Enter your complete address"
-            className={errors.address ? "border-red-500" : ""}
-            rows={3}
-          />
-          {errors.address && <p className="text-xs text-red-500">{errors.address}</p>}
-        </div>
-
-        <div className="flex items-start space-x-2">
-          <Checkbox
-            id="terms"
-            checked={agreeToTerms}
-            onCheckedChange={(checked) => setAgreeToTerms(checked as boolean)}
-            className={errors.agreeToTerms ? "border-red-500" : ""}
-          />
-          <div className="grid gap-1.5 leading-none">
-            <Label htmlFor="terms" className={`text-sm font-normal ${errors.agreeToTerms ? "text-red-500" : ""}`}>
-              I agree to the HealthSync terms and conditions
-            </Label>
-            {errors.agreeToTerms && <p className="text-xs text-red-500">{errors.agreeToTerms}</p>}
-          </div>
-        </div>
-
-        <Button
-          type="submit"
-          className="w-full bg-gradient-to-r from-[#3FB6F6] to-[#34D399] hover:from-[#3FB6F6] hover:to-[#2ebb85]"
-          disabled={isLoading}
-        >
-          {isLoading ? "Creating Account..." : "Create Patient Account"}
-        </Button>
-      </form>
-
-      <div className="text-center">
-        <p className="text-sm text-gray-500">
-          Already have an account?{" "}
-          <Link href="/login" className="font-medium text-[#3FB6F6] hover:text-[#34D399]">
-            Sign in here
-          </Link>
-        </p>
-      </div>
-    </div>
+        </form>
+      </CardContent>
+    </Card>
   )
 }
