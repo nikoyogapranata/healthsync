@@ -33,6 +33,7 @@ export function RegistrationForm() {
   const [agreeToTerms, setAgreeToTerms] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [successMessage, setSuccessMessage] = useState("")
   const router = useRouter()
 
   const togglePasswordVisibility = () => {
@@ -162,8 +163,12 @@ export function RegistrationForm() {
     }
 
     setIsLoading(true)
+    setErrors({})
+    setSuccessMessage("")
 
     try {
+      console.log("Starting registration process...")
+
       // Step 1: Create user with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
@@ -183,6 +188,8 @@ export function RegistrationForm() {
         },
       })
 
+      console.log("Auth signup result:", { authData, authError })
+
       if (authError) {
         throw new Error(authError.message)
       }
@@ -191,20 +198,24 @@ export function RegistrationForm() {
         throw new Error("Failed to create user account")
       }
 
-      // Check if email confirmation is required
-      if (!authData.session) {
-        // Email confirmation required - redirect to login with message
-        router.push(
-          "/login?registered=true&message=Registration successful! Please check your email and click the verification link, then sign in.",
+      if (authData.session) {
+        // User is immediately authenticated (email confirmation disabled)
+        console.log("User authenticated immediately, setting up profile...")
+        await setupUserProfile(authData.user.id)
+        setSuccessMessage("Registration successful! Redirecting to sign in page...")
+        setTimeout(() => {
+          router.push("/login?registered=true&message=Registration successful! Please sign in with your credentials.")
+        }, 2000)
+      } else {
+        // Email confirmation required
+        console.log("Email confirmation required")
+        setSuccessMessage(
+          "Registration successful! Please check your email and click the verification link, then sign in.",
         )
-        return
+        setTimeout(() => {
+          router.push("/login?registered=true&message=Please check your email and verify your account, then sign in.")
+        }, 3000)
       }
-
-      // If no email confirmation required, proceed with database setup
-      await setupUserProfile(authData.user.id)
-
-      // Success! Redirect to patient dashboard
-      router.push("/dashboard?registered=true")
     } catch (err: any) {
       console.error("Registration error:", err)
       setErrors({
@@ -216,35 +227,44 @@ export function RegistrationForm() {
   }
 
   const setupUserProfile = async (userId: string) => {
-    // Insert into users table
-    const { error: userError } = await supabase.from("users").insert({
-      user_id: userId,
-      email: formData.email,
-      role: "patient",
-      created_at: new Date().toISOString(),
-    })
+    try {
+      console.log("Setting up user profile for:", userId)
 
-    if (userError) {
-      console.error("User creation error:", userError)
-      throw new Error("Failed to create user record")
-    }
+      // Insert into users table
+      const { error: userError } = await supabase.from("users").insert({
+        user_id: userId,
+        email: formData.email,
+        role: "patient",
+        created_at: new Date().toISOString(),
+      })
 
-    // Insert patient data into the patients table
-    const { error: patientError } = await supabase.from("patients").insert({
-      patient_id: crypto.randomUUID(),
-      user_id: userId,
-      full_name: formData.fullName,
-      national_id: formData.nationalId,
-      date_of_birth: formData.dateOfBirth,
-      gender: formData.gender,
-      blood_type: formData.bloodType || null,
-      phone_number: formData.phoneNumber,
-      address: formData.address,
-    })
+      if (userError && !userError.message.includes("duplicate")) {
+        console.error("User creation error:", userError)
+        throw new Error("Failed to create user record")
+      }
 
-    if (patientError) {
-      console.error("Patient creation error:", patientError)
-      throw new Error("Failed to create patient profile")
+      // Insert patient data into the patients table
+      const { error: patientError } = await supabase.from("patients").insert({
+        patient_id: crypto.randomUUID(),
+        user_id: userId,
+        full_name: formData.fullName,
+        national_id: formData.nationalId,
+        date_of_birth: formData.dateOfBirth,
+        gender: formData.gender,
+        blood_type: formData.bloodType || null,
+        phone_number: formData.phoneNumber,
+        address: formData.address,
+      })
+
+      if (patientError && !patientError.message.includes("duplicate")) {
+        console.error("Patient creation error:", patientError)
+        throw new Error("Failed to create patient profile")
+      }
+
+      console.log("User profile setup completed successfully")
+    } catch (err) {
+      console.error("Profile setup error:", err)
+      throw err
     }
   }
 
@@ -258,6 +278,12 @@ export function RegistrationForm() {
       {errors.general && (
         <Alert variant="destructive" className="bg-red-50 text-red-800 border-red-200">
           <AlertDescription>{errors.general}</AlertDescription>
+        </Alert>
+      )}
+
+      {successMessage && (
+        <Alert className="bg-green-50 text-green-800 border-green-200">
+          <AlertDescription>{successMessage}</AlertDescription>
         </Alert>
       )}
 
@@ -411,6 +437,7 @@ export function RegistrationForm() {
                 <SelectItem value="AB-">AB-</SelectItem>
                 <SelectItem value="O+">O+</SelectItem>
                 <SelectItem value="O-">O-</SelectItem>
+                <SelectItem value="Unknown">I don't know yet</SelectItem>
               </SelectContent>
             </Select>
           </div>
