@@ -1,6 +1,5 @@
 import { RegistrationForm } from "@/components/registration-form"
 import Image from "next/image"
-import Link from "next/link"
 
 export default function RegisterPage() {
   return (
@@ -27,32 +26,19 @@ export default function RegisterPage() {
           {/* Registration Form Container */}
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
             <RegistrationForm />
-
-            {/* Sign In Link */}
-            <div className="mt-8 text-center">
-              <p className="text-gray-600">
-                Already have an account?{" "}
-                <Link
-                  href="/login"
-                  className="font-medium text-[#3FB6F6] hover:text-[#34D399] transition-colors duration-200"
-                >
-                  Sign in here
-                </Link>
-              </p>
-            </div>
           </div>
 
           {/* Footer Links */}
           <div className="mt-8 text-center space-x-6">
-            <Link href="#" className="text-sm text-gray-500 hover:text-gray-700 transition-colors duration-200">
+            <a href="#" className="text-sm text-gray-500 hover:text-gray-700 transition-colors duration-200">
               Privacy Policy
-            </Link>
-            <Link href="#" className="text-sm text-gray-500 hover:text-gray-700 transition-colors duration-200">
+            </a>
+            <a href="#" className="text-sm text-gray-500 hover:text-gray-700 transition-colors duration-200">
               Terms of Service
-            </Link>
-            <Link href="#" className="text-sm text-gray-500 hover:text-gray-700 transition-colors duration-200">
+            </a>
+            <a href="#" className="text-sm text-gray-500 hover:text-gray-700 transition-colors duration-200">
               Help
-            </Link>
+            </a>
           </div>
         </div>
       </div>
@@ -70,17 +56,18 @@ export default function RegisterPage() {
         </div>
 
         <div className="relative z-10 flex max-w-lg flex-col items-center text-center">
-          <div className="mb-12 w-full max-w-md">
+          <div className="mb-12 w-full max-w-sm">
             <div className="relative">
               <div className="absolute -inset-4 bg-white/20 rounded-3xl blur-2xl"></div>
-              <Image
-                src="/illustrations/signin-signup.png"
-                alt="HealthSync - Digital Healthcare Registration"
-                width={500}
-                height={400}
-                className="relative h-auto w-full rounded-2xl shadow-2xl"
-                priority
-              />
+              <div className="relative aspect-square w-full">
+                <Image
+                  src="/illustrations/signin-signup.jpg"
+                  alt="HealthSync - Digital Healthcare Registration"
+                  fill
+                  className="object-cover rounded-2xl shadow-2xl"
+                  priority
+                />
+              </div>
             </div>
           </div>
 
