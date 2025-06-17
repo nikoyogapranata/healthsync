@@ -25,20 +25,24 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* Modern Header */}
-      <header className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-md">
-        <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center">
-            <Link href="/landing" className="flex items-center group">
-              <div className="mr-3 h-10 w-10 overflow-hidden rounded-xl bg-gradient-to-br from-[#3FB6F6] via-[#34D399] to-[#10B981] shadow-lg group-hover:shadow-xl transition-all duration-300">
-                <div className="flex h-full items-center justify-center text-xl font-bold text-white">HS</div>
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                HealthSync
-              </span>
-            </Link>
-          </div>
+        <div className="flex min-h-screen flex-col">
+              {/* Modern Header */}
+              <header className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-md">
+                <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6">
+                  <div className="flex items-center">
+                    <Link href="/landing" className="flex items-center group">
+                      <div className="mr-3 h-10 w-10 overflow-hidden rounded-xl group-hover:shadow-xl transition-all duration-300">
+                        <img 
+                          src="/illustrations/logo.png" 
+                          alt="HealthSync Logo" 
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <span className="text-2xl font-bold bg-gradient-to-r from-[#3FB6F6] via-[#34D399] to-[#10B981] bg-clip-text text-transparent">
+                        HealthSync
+                      </span>
+                    </Link>
+                  </div>
 
           {/* Desktop Navigation */}
           <nav className="hidden space-x-8 md:flex">
