@@ -118,7 +118,7 @@ export default function LandingPage() {
                   New: Advanced Health Analytics
                 </div>
 
-                <h1 className="text-5xl font-bold tracking-tight text-gray-900 md:text-6xl lg:text-7xl">
+                <h1 className="text-5xl font-bold tracking-tight text-gray-900 md:text-6xl lg:text-7xl leading-snug md:leading-tight lg:leading-tight">
                   <span className="block">Integrated</span>
                   <span className="block bg-gradient-to-r from-[#3FB6F6] to-[#34D399] bg-clip-text text-transparent">
                     Digital Medical
