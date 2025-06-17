@@ -260,16 +260,17 @@ export default function LandingPage() {
         <section id="about" className="bg-gradient-to-br from-gray-50 to-blue-50 py-24 md:py-32">
           <div className="container mx-auto px-4 sm:px-6">
             <div className="flex flex-col items-center justify-between gap-16 lg:flex-row">
-              <div className="w-full max-w-2xl lg:max-w-xl">
+              <div className="w-full max-w-lg lg:max-w-md">
                 <div className="relative">
                   <div className="absolute -inset-4 bg-gradient-to-r from-[#3FB6F6] to-[#34D399] rounded-3xl blur-2xl opacity-20"></div>
-                  <Image
-                    src="/illustrations/about-us.png"
-                    alt="About HealthSync - Connecting Healthcare"
-                    width={600}
-                    height={500}
-                    className="relative h-auto w-full rounded-2xl"
-                  />
+                  <div className="relative aspect-square w-full">
+                    <Image
+                      src="/illustrations/about-us.jpg"
+                      alt="About HealthSync - Connecting Healthcare"
+                      fill
+                      className="object-cover rounded-2xl shadow-2xl"
+                    />
+                  </div>
                 </div>
               </div>
 
