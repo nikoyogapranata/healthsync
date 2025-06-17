@@ -1,0 +1,51 @@
+<svg width="500" height="400" viewBox="0 0 500 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="500" height="400" fill="white" fill-opacity="0.01"/>
+  <path d="M250 380C345.604 380 423 302.604 423 207C423 111.396 345.604 34 250 34C154.396 34 77 111.396 77 207C77 302.604 154.396 380 250 380Z" fill="#E6FFF6" fill-opacity="0.5"/>
+  
+  <!-- Hospital Building -->
+  <rect x="150" y="150" width="200" height="150" fill="#3FB6F6"/>
+  <rect x="170" y="170" width="40" height="40" fill="white"/>
+  <rect x="230" y="170" width="40" height="40" fill="white"/>
+  <rect x="290" y="170" width="40" height="40" fill="white"/>
+  <rect x="170" y="230" width="40" height="70" fill="white"/>
+  <rect x="230" y="230" width="90" height="70" fill="white"/>
+  <rect x="240" y="100" width="20" height="50" fill="#3FB6F6"/>
+  <path d="M150 150H350" stroke="#34D399" stroke-width="4"/>
+  
+  <!-- Health Cross -->
+  <rect x="235" y="60" width="30" height="30" fill="#FF6B6B"/>
+  <rect x="245" y="50" width="10" height="50" fill="#FF6B6B"/>
+  <rect x="225" y="70" width="50" height="10" fill="#FF6B6B"/>
+  
+  <!-- People -->
+  <circle cx="130" cy="270" r="20" fill="#34D399"/>
+  <rect x="120" y="290" width="20" height="30" fill="#34D399"/>
+  <rect x="115" y="320" width="10" height="20" fill="#34D399"/>
+  <rect x="135" y="320" width="10" height="20" fill="#34D399"/>
+  
+  <circle cx="370" cy="270" r="20" fill="#34D399"/>
+  <rect x="360" y="290" width="20" height="30" fill="#34D399"/>
+  <rect x="355" y="320" width="10" height="20" fill="#34D399"/>
+  <rect x="375" y="320" width="10" height="20" fill="#34D399"/>
+  
+  <!-- Digital Elements -->
+  <path d="M100 120L120 140L150 110" stroke="#34D399" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M400 120L380 140L350 110" stroke="#3FB6F6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Connection Lines -->
+  <path d="M130 230C130 230 150 210 170 230" stroke="#34D399" stroke-width="2" stroke-dasharray="4 4"/>
+  <path d="M370 230C370 230 350 210 330 230" stroke="#3FB6F6" stroke-width="2" stroke-dasharray="4 4"/>
+  
+  <!-- Health Icons -->
+  <circle cx="100" cy="180" r="15" fill="#FFD166"/>
+  <path d="M100 175V185" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <path d="M95 180H105" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  
+  <circle cx="400" cy="180" r="15" fill="#FFD166"/>
+  <path d="M400 175V185" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <path d="M395 180H405" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Cloud/Data Elements -->
+  <path d="M80 80C80 80 70 90 80 100C90 110 100 100 110 110C120 120 110 130 100 130C90 130 80 120 80 110C70 100 60 110 60 100C60 90 70 80 80 80Z" fill="#3FB6F6" fill-opacity="0.5"/>
+  <path d="M420 80C420 80 410 90 420 100C430 110 440 100 450 110C460 120 450 130 440 130C430 130 420 120 420 110C410 100 400 110 400 100C400 90 410 80 420 80Z" fill="#34D399" fill-opacity="0.5"/>
+</svg>
