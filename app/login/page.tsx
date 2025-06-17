@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { LoginForm } from "@/components/login-form"
 import Image from "next/image"
 
@@ -84,7 +85,9 @@ export default function LoginPage() {
 
           {/* Login Form Container */}
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-            <LoginForm />
+            <Suspense fallback={<div className="flex justify-center items-center h-32">Loading...</div>}>
+              <LoginForm />
+            </Suspense>
           </div>
 
           {/* Footer Links */}
