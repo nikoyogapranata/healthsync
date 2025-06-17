@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   },
   description: 'Integrated Digital Medical Records',
   icons: {
-    icon: '/favicon.ico',
+    icon: '/illustrations/favicon.png',
   },
 }
 
@@ -20,7 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/illustrations/favicon.png" sizes="any" />
       </head>
       <body>{children}</body>
     </html>
