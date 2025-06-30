@@ -30,11 +30,11 @@ export default function LandingPage() {
               <header className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-md">
                 <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6">
                   <div className="flex items-center">
-                    <Link href="/landing" className="flex items-center group">
-                      <div className="mr-3 h-10 w-10 overflow-hidden rounded-xl group-hover:shadow-xl transition-all duration-300">
-                        <img 
-                          src="/illustrations/logo.png" 
-                          alt="HealthSync Logo" 
+                    <Link href="/landing" className="flex items-center">
+                      <div className="mr-3 h-10 w-10 overflow-hidden rounded-xl">
+                        <img
+                          src="/illustrations/logo.png"
+                          alt="HealthSync Logo"
                           className="h-full w-full object-cover"
                         />
                       </div>
@@ -114,7 +114,7 @@ export default function LandingPage() {
         {/* Modern Hero Section */}
         <section className="relative overflow-hidden bg-gradient-to-br from-gray-50 via-white to-blue-50">
           <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
-          <div className="container mx-auto px-4 sm:px-6 py-20 md:py-32">
+          <div className="relative z-10 container mx-auto px-4 sm:px-6 py-20 md:py-32">
             <div className="flex flex-col items-center justify-between gap-16 lg:flex-row">
               <div className="max-w-2xl space-y-8 text-center lg:text-left">
                 <div className="inline-flex items-center rounded-full bg-gradient-to-r from-[#3FB6F6]/10 to-[#34D399]/10 px-4 py-2 text-sm font-medium text-[#3FB6F6] border border-[#3FB6F6]/20">
@@ -454,17 +454,23 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 sm:px-6 py-16">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
             {/* Brand Section */}
-            <div className="md:col-span-2">
-              <div className="flex items-center mb-6">
-                <div className="mr-3 h-12 w-12 overflow-hidden rounded-xl bg-gradient-to-br from-[#3FB6F6] to-[#34D399]">
-                  <div className="flex h-full items-center justify-center text-xl font-bold text-white">HS</div>
-                </div>
-                <span className="text-2xl font-bold">HealthSync</span>
-              </div>
-              <p className="text-gray-400 mb-8 max-w-md leading-relaxed">
-                Revolutionizing healthcare management with secure, integrated digital medical records. Connecting
-                patients, doctors, and facilities for better health outcomes.
-              </p>
+              <div className="md:col-span-2">
+                <Link href="/landing" className="flex items-center mb-6">
+                  <div className="mr-3 h-10 w-10 overflow-hidden rounded-xl">
+                    <img
+                      src="/illustrations/logo.png"
+                      alt="HealthSync Logo"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <span className="text-2xl font-bold bg-gradient-to-r from-[#3FB6F6] via-[#34D399] to-[#10B981] bg-clip-text text-transparent">
+                    HealthSync
+                  </span>
+                </Link>
+                <p className="text-gray-400 mb-8 max-w-md leading-relaxed">
+                  Revolutionizing healthcare management with secure, integrated digital medical records. Connecting
+                  patients, doctors, and facilities for better health outcomes.
+                </p>
               <div className="flex space-x-6">
                 <Link href="#" className="text-gray-400 hover:text-[#3FB6F6] transition-colors duration-200">
                   <Facebook size={24} />
