@@ -1,6 +1,9 @@
 import { Suspense } from 'react'
 import { RegistrationForm } from "@/components/registration-form"
 import Image from "next/image"
+import { CheckCircle } from "lucide-react"
+import Link from "next/link"
+
 
 export default function RegisterPage() {
   return (
@@ -9,7 +12,7 @@ export default function RegisterPage() {
       <div className="flex w-full items-center justify-center bg-gray-50 p-8 lg:w-1/2">
         <div className="w-full max-w-2xl">
           {/* Mobile Logo */}
-          <div className="flex items-center justify-center mb-8 lg:hidden">
+          <Link href="/landing" className="flex items-center justify-center mb-8 lg:hidden">
             <div className="mr-3 h-10 w-10 overflow-hidden rounded-xl">
               <img
                 src="/illustrations/logo.png"
@@ -20,7 +23,7 @@ export default function RegisterPage() {
             <span className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
               HealthSync
             </span>
-          </div>
+          </Link>
 
           {/* Welcome Text */}
           <div className="text-center mb-8">
@@ -60,23 +63,24 @@ export default function RegisterPage() {
           priority
         />
         {/* Gradient overlay for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#34D399]/80 via-[#3FB6F6]/80 to-[#10B981]/80"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900/70 to-slate-900/80"></div>
 
-        {/* Logo - Stays at the top-right corner */}
-        <div className="absolute top-8 right-8 z-20 flex items-center">
-          <div className="mr-3 h-10 w-10 overflow-hidden rounded-xl bg-white p-1 shadow-md">
-            <img
-              src="/illustrations/logo.png"
-              alt="HealthSync Logo"
-              className="h-full w-full object-contain"
-            />
-          </div>
-          <span className="text-xl font-bold text-white">HealthSync</span>
-        </div>
 
         {/* Centered Content */}
         <div className="absolute inset-0 z-10 flex flex-col justify-center items-center p-12 text-center">
           <div className="max-w-lg space-y-6">
+          {/* --- Logo's New Position --- */}
+          <Link href="/landing" className="flex items-center justify-center mb-12">
+            <div className="mr-3 h-12 w-12 overflow-hidden rounded-xl bg-white p-1.5 shadow-md">
+              <img
+                src="/illustrations/logo.png"
+                alt="HealthSync Logo"
+                className="h-full w-full object-contain"
+              />
+            </div>
+            <span className="text-2xl font-bold bg-gradient-to-r from-[#3FB6F6] via-[#34D399] to-[#10B981] bg-clip-text text-transparent">HealthSync</span>
+          </Link>
+
             <h2 className="text-4xl font-bold text-white leading-tight">Start Your Health Journey</h2>
             <p className="text-xl text-white/90 leading-relaxed">
               "Register and manage your health data easily and securely."
@@ -88,21 +92,21 @@ export default function RegisterPage() {
           </div>
 
           {/* Benefits */}
-          <div className="mt-12 space-y-4 max-w-lg w-full text-left">
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
-              <span className="text-white/90">Secure, encrypted medical records</span>
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 max-w-lg w-full text-left">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="h-5 w-5 text-[#34D399] shrink-0" />
+              <span className="text-white/90">Secure, encrypted records</span>
             </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
-              <span className="text-white/90">Access from any healthcare facility</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
+            <div className="flex items-center gap-3">
+              <CheckCircle className="h-5 w-5 text-[#34D399] shrink-0" />
               <span className="text-white/90">Real-time health analytics</span>
             </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
+            <div className="flex items-center gap-3">
+              <CheckCircle className="h-5 w-5 text-[#34D399] shrink-0" />
+              <span className="text-white/90">Access from anywhere</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <CheckCircle className="h-5 w-5 text-[#34D399] shrink-0" />
               <span className="text-white/90">24/7 customer support</span>
             </div>
           </div>

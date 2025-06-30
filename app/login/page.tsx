@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { LoginForm } from "@/components/login-form"
 import Image from "next/image"
+import Link from "next/link"
 
 export default function LoginPage() {
   return (
@@ -15,23 +16,24 @@ export default function LoginPage() {
           priority
         />
         {/* Gradient overlay for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#3FB6F6]/80 via-[#34D399]/80 to-[#10B981]/80"></div>
-        
-        {/* Logo - Stays at the top-left corner */}
-        <div className="absolute top-8 left-8 z-20 flex items-center">
-          <div className="mr-3 h-10 w-10 overflow-hidden rounded-xl bg-white p-1 shadow-md">
-            <img
-              src="/illustrations/logo.png"
-              alt="HealthSync Logo"
-              className="h-full w-full object-contain"
-            />
-          </div>
-          <span className="text-xl font-bold text-white">HealthSync</span>
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900/70 to-slate-900/80"></div>
 
+        
         {/* Centered Content */}
         <div className="absolute inset-0 z-10 flex flex-col justify-center items-center p-12 text-center">
           <div className="max-w-lg space-y-6">
+            {/* --- Logo's New Position --- */}
+            <Link href="/landing" className="flex items-center justify-center mb-12">
+              <div className="mr-3 h-12 w-12 overflow-hidden rounded-xl bg-white p-1.5 shadow-md">
+                <img
+                  src="/illustrations/logo.png"
+                  alt="HealthSync Logo"
+                  className="h-full w-full object-contain"
+                />
+              </div>
+              <span className="text-2xl font-bold bg-gradient-to-r from-[#3FB6F6] via-[#34D399] to-[#10B981] bg-clip-text text-transparent">HealthSync</span>
+            </Link>
+            
             <h2 className="text-4xl font-bold text-white leading-tight">Welcome Back to HealthSync</h2>
             <p className="text-xl text-white/90 leading-relaxed">"Your Health, Your Data, Your Control."</p>
             <p className="text-lg text-white/80 leading-relaxed">
@@ -43,15 +45,15 @@ export default function LoginPage() {
           {/* Trust Indicators */}
           <div className="mt-12 grid grid-cols-3 gap-8 text-center max-w-lg">
             <div>
-              <div className="text-2xl font-bold text-white mb-1">256-bit</div>
+              <div className="text-2xl font-bold text-[#34D399] mb-1">256-bit</div>
               <div className="text-sm text-white/80">Encryption</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-white mb-1">HIPAA</div>
+              <div className="text-2xl font-bold text-[#34D399] mb-1">HIPAA</div>
               <div className="text-sm text-white/80">Compliant</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-white mb-1">24/7</div>
+              <div className="text-2xl font-bold text-[#34D399] mb-1">24/7</div>
               <div className="text-sm text-white/80">Support</div>
             </div>
           </div>
@@ -62,7 +64,7 @@ export default function LoginPage() {
       <div className="flex w-full items-center justify-center bg-gray-50 p-8 lg:w-1/2">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
-          <div className="flex items-center justify-center mb-8 lg:hidden">
+          <Link href="/landing" className="flex items-center justify-center mb-8 lg:hidden">
             <div className="mr-3 h-10 w-10 overflow-hidden rounded-xl">
               <img
                 src="/illustrations/logo.png"
@@ -73,7 +75,7 @@ export default function LoginPage() {
             <span className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
               HealthSync
             </span>
-          </div>
+          </Link>
 
           {/* Welcome Text */}
           <div className="text-center mb-8">
