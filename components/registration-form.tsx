@@ -21,6 +21,7 @@ export function RegistrationForm() {
     email: "",
     password: "",
     confirmPassword: "",
+    national_id: "", // Added national_id
     phoneNumber: "",
     dateOfBirth: "",
     gender: "",
@@ -48,9 +49,21 @@ export function RegistrationForm() {
     setError("")
     setSuccess("")
 
-    // Validation
+    // --- Start Validation ---
     if (!formData.fullName.trim()) {
       setError("Full name is required")
+      setIsLoading(false)
+      return
+    }
+
+    if (!formData.national_id.trim()) {
+      setError("National ID is required")
+      setIsLoading(false)
+      return
+    }
+
+    if (formData.national_id.length !== 16 || !/^\d+$/.test(formData.national_id)) {
+      setError("National ID must be 16 digits and contain only numbers.")
       setIsLoading(false)
       return
     }
@@ -78,6 +91,7 @@ export function RegistrationForm() {
       setIsLoading(false)
       return
     }
+    // --- End Validation ---
 
     try {
       console.log("Submitting registration via server action...")
@@ -86,6 +100,7 @@ export function RegistrationForm() {
         fullName: formData.fullName,
         email: formData.email,
         password: formData.password,
+        national_id: formData.national_id, // Pass national_id to server action
         phoneNumber: formData.phoneNumber,
         dateOfBirth: formData.dateOfBirth,
         gender: formData.gender,
@@ -108,6 +123,7 @@ export function RegistrationForm() {
         email: "",
         password: "",
         confirmPassword: "",
+        national_id: "", // Clear national_id
         phoneNumber: "",
         dateOfBirth: "",
         gender: "",
@@ -172,6 +188,7 @@ export function RegistrationForm() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* --- Row 1: Name and National ID --- */}
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
               <Input
@@ -182,7 +199,19 @@ export function RegistrationForm() {
                 placeholder="John Doe"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="national_id">National ID (NIK)</Label>
+              <Input
+                id="national_id"
+                name="national_id"
+                value={formData.national_id}
+                onChange={handleChange}
+                placeholder="16-digit National ID"
+                maxLength={16}
+              />
+            </div>
 
+            {/* --- Row 2: Email and Phone --- */}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -194,7 +223,19 @@ export function RegistrationForm() {
                 placeholder="your.email@example.com"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber">Phone Number</Label>
+              <Input
+                id="phoneNumber"
+                name="phoneNumber"
+                type="tel"
+                value={formData.phoneNumber}
+                onChange={handleChange}
+                placeholder="+62 812 3456 7890"
+              />
+            </div>
 
+            {/* --- Row 3: Passwords --- */}
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
@@ -204,7 +245,7 @@ export function RegistrationForm() {
                   type={showPassword ? "text" : "password"}
                   value={formData.password}
                   onChange={handleChange}
-                  placeholder="Enter your password"
+                  placeholder="At least 8 characters"
                   className="pr-10"
                 />
                 <Button
@@ -218,7 +259,6 @@ export function RegistrationForm() {
                 </Button>
               </div>
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
               <div className="relative">
@@ -243,18 +283,7 @@ export function RegistrationForm() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phoneNumber">Phone Number</Label>
-              <Input
-                id="phoneNumber"
-                name="phoneNumber"
-                type="tel"
-                value={formData.phoneNumber}
-                onChange={handleChange}
-                placeholder="+1 (555) 123-4567"
-              />
-            </div>
-
+            {/* --- Row 4: DOB and Gender --- */}
             <div className="space-y-2">
               <Label htmlFor="dateOfBirth">Date of Birth</Label>
               <Input
@@ -265,7 +294,6 @@ export function RegistrationForm() {
                 onChange={handleChange}
               />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="gender">Gender</Label>
               <Select onValueChange={(value) => handleSelectChange("gender", value)}>
@@ -276,16 +304,16 @@ export function RegistrationForm() {
                   <SelectItem value="male">Male</SelectItem>
                   <SelectItem value="female">Female</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
-                  <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
+            {/* --- Row 5: Blood Type --- */}
+            <div className="space-y-2 md:col-span-2">
               <Label htmlFor="bloodType">Blood Type</Label>
               <Select onValueChange={(value) => handleSelectChange("bloodType", value)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select blood type" />
+                  <SelectValue placeholder="Select blood type (optional)" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="A+">A+</SelectItem>
@@ -296,12 +324,13 @@ export function RegistrationForm() {
                   <SelectItem value="AB-">AB-</SelectItem>
                   <SelectItem value="O+">O+</SelectItem>
                   <SelectItem value="O-">O-</SelectItem>
-                  <SelectItem value="unknown">I don't know yet</SelectItem>
+                  <SelectItem value="unknown">I don't know</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
+          {/* --- Full-width Address --- */}
           <div className="space-y-2">
             <Label htmlFor="address">Address</Label>
             <Textarea
@@ -309,7 +338,7 @@ export function RegistrationForm() {
               name="address"
               value={formData.address}
               onChange={handleChange}
-              placeholder="Your full address"
+              placeholder="Your full address (optional)"
               rows={2}
             />
           </div>

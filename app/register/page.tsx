@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { RegistrationForm } from "@/components/registration-form"
 import Image from "next/image"
 
@@ -9,8 +10,12 @@ export default function RegisterPage() {
         <div className="w-full max-w-2xl">
           {/* Mobile Logo */}
           <div className="flex items-center justify-center mb-8 lg:hidden">
-            <div className="mr-3 h-10 w-10 overflow-hidden rounded-xl bg-gradient-to-br from-[#3FB6F6] to-[#34D399]">
-              <div className="flex h-full items-center justify-center text-lg font-bold text-white">HS</div>
+            <div className="mr-3 h-10 w-10 overflow-hidden rounded-xl">
+              <img
+                src="/illustrations/logo.png"
+                alt="HealthSync Logo"
+                className="h-full w-full object-cover"
+              />
             </div>
             <span className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
               HealthSync
@@ -25,7 +30,9 @@ export default function RegisterPage() {
 
           {/* Registration Form Container */}
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-            <RegistrationForm />
+            <Suspense fallback={<div className="flex justify-center items-center h-32">Loading...</div>}>
+              <RegistrationForm />
+            </Suspense>
           </div>
 
           {/* Footer Links */}
@@ -43,35 +50,33 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* Right Side - Enhanced Illustration */}
-      <div className="relative hidden w-1/2 lg:flex lg:flex-col lg:justify-center lg:items-center bg-gradient-to-br from-[#34D399] via-[#3FB6F6] to-[#10B981] p-12">
-        <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
+      {/* Right Side - Full Image Background */}
+      <div className="relative hidden w-1/2 lg:block">
+        <Image
+          src="/illustrations/signin-signup.jpg"
+          alt="A secure and modern healthcare platform interface"
+          fill
+          className="object-cover"
+          priority
+        />
+        {/* Gradient overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#34D399]/80 via-[#3FB6F6]/80 to-[#10B981]/80"></div>
 
-        {/* Logo */}
-        <div className="absolute top-8 right-8 flex items-center">
-          <div className="mr-3 h-10 w-10 overflow-hidden rounded-xl bg-white/20 backdrop-blur-sm">
-            <div className="flex h-full items-center justify-center text-lg font-bold text-white">HS</div>
+        {/* Logo - Stays at the top-right corner */}
+        <div className="absolute top-8 right-8 z-20 flex items-center">
+          <div className="mr-3 h-10 w-10 overflow-hidden rounded-xl bg-white p-1 shadow-md">
+            <img
+              src="/illustrations/logo.png"
+              alt="HealthSync Logo"
+              className="h-full w-full object-contain"
+            />
           </div>
           <span className="text-xl font-bold text-white">HealthSync</span>
         </div>
 
-        <div className="relative z-10 flex max-w-lg flex-col items-center text-center">
-          <div className="mb-12 w-full max-w-sm">
-            <div className="relative">
-              <div className="absolute -inset-4 bg-white/20 rounded-3xl blur-2xl"></div>
-              <div className="relative aspect-square w-full">
-                <Image
-                  src="/illustrations/signin-signup.jpg"
-                  alt="HealthSync - Digital Healthcare Registration"
-                  fill
-                  className="object-cover rounded-2xl shadow-2xl"
-                  priority
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-6">
+        {/* Centered Content */}
+        <div className="absolute inset-0 z-10 flex flex-col justify-center items-center p-12 text-center">
+          <div className="max-w-lg space-y-6">
             <h2 className="text-4xl font-bold text-white leading-tight">Start Your Health Journey</h2>
             <p className="text-xl text-white/90 leading-relaxed">
               "Register and manage your health data easily and securely."
@@ -83,7 +88,7 @@ export default function RegisterPage() {
           </div>
 
           {/* Benefits */}
-          <div className="mt-12 space-y-4 text-left">
+          <div className="mt-12 space-y-4 max-w-lg w-full text-left">
             <div className="flex items-center space-x-3">
               <div className="w-2 h-2 bg-white rounded-full"></div>
               <span className="text-white/90">Secure, encrypted medical records</span>
@@ -102,10 +107,6 @@ export default function RegisterPage() {
             </div>
           </div>
         </div>
-
-        {/* Decorative Elements */}
-        <div className="absolute top-20 left-20 w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
-        <div className="absolute bottom-20 right-20 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
       </div>
     </div>
   )

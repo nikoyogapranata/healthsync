@@ -17,6 +17,7 @@ export async function registerPatient(formData: {
   fullName: string
   email: string
   password: string
+  national_id: string // Added national_id
   phoneNumber?: string
   dateOfBirth?: string
   gender?: string
@@ -26,21 +27,35 @@ export async function registerPatient(formData: {
   try {
     console.log("Starting patient registration...")
 
-    // Step 0: Check if email already exists
-    const { data: existingUser } = await supabaseAdmin
+    // Step 1: Check if email already exists in the users table
+    const { data: existingUserByEmail } = await supabaseAdmin
       .from("users")
       .select("email")
       .eq("email", formData.email)
       .single()
 
-    if (existingUser) {
+    if (existingUserByEmail) {
       return {
         success: false,
         message: "An account with this email already exists. Please use a different email or try logging in.",
       }
     }
 
-    // Step 1: Use regular signup (this will send verification email automatically)
+    // Step 2: Check if National ID already exists in the patients table
+    const { data: existingPatientById } = await supabaseAdmin
+      .from("patients")
+      .select("national_id")
+      .eq("national_id", formData.national_id)
+      .single()
+
+    if (existingPatientById) {
+      return {
+        success: false,
+        message: "A patient with this National ID is already registered. Please check the ID and try again.",
+      }
+    }
+
+    // Step 3: Use regular signup (this will send verification email automatically)
     const { data: authData, error: authError } = await supabaseClient.auth.signUp({
       email: formData.email,
       password: formData.password,
@@ -63,11 +78,11 @@ export async function registerPatient(formData: {
 
     console.log("User created in Auth, adding to database...")
 
-    // Step 2: Add user to users table using admin client (bypasses RLS)
+    // Step 4: Add user to users table using admin client (bypasses RLS)
     const { error: userError } = await supabaseAdmin.from("users").insert({
       user_id: authData.user.id,
       email: formData.email,
-      password: "managed_by_supabase_auth",
+      password: "managed_by_supabase_auth", // It's better not to store plaintext passwords
       role: "patient",
     })
 
@@ -78,11 +93,12 @@ export async function registerPatient(formData: {
       return { success: false, message: `Failed to create user record: ${userError.message}` }
     }
 
-    // Step 3: Add patient details
+    // Step 5: Add patient details, including the new national_id
     const patientData: any = {
       patient_id: crypto.randomUUID(),
       user_id: authData.user.id,
       full_name: formData.fullName,
+      national_id: formData.national_id, // Added national_id
       phone_number: formData.phoneNumber || null,
       gender: formData.gender || null,
       blood_type: formData.bloodType || null,
@@ -98,7 +114,7 @@ export async function registerPatient(formData: {
 
     if (patientError) {
       console.error("Patient table error:", patientError)
-      // Clean up both auth user and users table
+      // Clean up both auth user and users table entries
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       await supabaseAdmin.from("users").delete().eq("user_id", authData.user.id)
       return { success: false, message: `Failed to create patient profile: ${patientError.message}` }
