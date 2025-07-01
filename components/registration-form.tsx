@@ -347,9 +347,16 @@ export function RegistrationForm() {
             {isLoading ? "Creating Account..." : "Create Account"}
           </Button>
 
-          <div className="text-center">
-            <Button type="button" variant="link" onClick={() => router.push("/login")} disabled={isLoading}>
-              Already have an account? Sign in
+          <div className="text-center text-sm text-gray-600">
+            Already have an account?{' '}
+            <Button
+              type="button"
+              variant="link"
+              className="p-0 h-auto font-semibold text-blue-600"
+              onClick={() => router.push("/login")}
+              disabled={isLoading}
+            >
+              Sign in
             </Button>
           </div>
         </form>
