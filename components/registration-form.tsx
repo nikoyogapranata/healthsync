@@ -352,7 +352,7 @@ export function RegistrationForm() {
             <Button
               type="button"
               variant="link"
-              className="p-0 h-auto font-semibold text-blue-600"
+              className="p-0 h-auto font-normal"
               onClick={() => router.push("/login")}
               disabled={isLoading}
             >

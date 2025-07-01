@@ -78,7 +78,7 @@ export default function RegisterPage() {
                 className="h-full w-full object-contain"
               />
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-[#3FB6F6] via-[#34D399] to-[#10B981] bg-clip-text text-transparent">HealthSync</span>
+          <span className="text-2xl font-bold bg-gradient-to-r from-[#3FB6F6] via-[#34D399] to-[#10B981] bg-clip-text text-transparent">HealthSync</span>
           </Link>
 
             <h2 className="text-4xl font-bold text-white leading-tight">Start Your Health Journey</h2>
