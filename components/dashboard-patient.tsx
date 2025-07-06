@@ -1,23 +1,30 @@
+//components\dashboard-patient.tsx
+
 "use client"
 
-import { useState } from "react"
+import Image from "next/image";
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import {
+  Facebook,
+  Instagram,
+  Twitter,
+  Mail,
   Calendar,
-  ClipboardList,
   Clock,
   FileText,
   Settings,
-  AlertCircle,
   ChevronRight,
+  CheckCircle,
   Bell,
   User,
   LogOut,
+  Home,
+  Heart,
+  MessageCircle,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -27,10 +34,123 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
+import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
+import { cn } from "@/lib/utils"
 
+// Navigation items - Updated with better organization
+const navigationItems = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: Home,
+    isActive: true,
+  },
+  {
+    title: "Appointments",
+    url: "/appointments",
+    icon: Calendar,
+  },
+  {
+    title: "Medical Records",
+    url: "/medical-records",
+    icon: FileText,
+  },
+  {
+    title: "Ask AI",
+    url: "/ask-ai",
+    icon: MessageCircle,
+  },
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: Settings,
+  },
+]
+
+// App Sidebar Component - Modern Design
+function AppSidebar() {
+  return (
+    <Sidebar collapsible="icon" className="border-r-0">
+      <SidebarHeader className="border-b border-border/40 pb-4">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
+              <Link href="/dashboard" className="flex items-center gap-3 px-2">
+                {/* The icon container now holds the Image component */}
+                <div className="flex aspect-square size-10 items-center justify-center rounded-xl">
+                  <Image
+                    src="/illustrations/logo.png"
+                    alt="HealthSync Logo"
+                    width={28}
+                    height={28}
+                  />
+                </div>
+                <div className="flex flex-col gap-0.5 leading-none">
+                  <span className="font-bold text-lg text-foreground">HealthSync</span>
+                  <span className="text-xs text-muted-foreground font-medium">Patient Dashboard</span>
+                </div>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+
+      <SidebarContent className="px-2 py-4">
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground/80 uppercase tracking-wider mb-2 px-2">
+            Navigation
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-1">
+              {navigationItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={item.isActive}
+                    tooltip={item.title}
+                    className={cn(
+                      "h-11 px-3 rounded-lg font-medium transition-all duration-200",
+                      "hover:bg-accent/50 hover:text-accent-foreground",
+                      "data-[active=true]:bg-gradient-to-r data-[active=true]:from-[#3FB6F6]/10 data-[active=true]:to-[#34D399]/10",
+                      "data-[active=true]:border data-[active=true]:border-[#3FB6F6]/20",
+                      "data-[active=true]:text-[#3FB6F6] data-[active=true]:font-semibold",
+                      "data-[active=true]:shadow-sm",
+                    )}
+                  >
+                    <Link href={item.url} className="flex items-center gap-3">
+                      <item.icon className="size-5" />
+                      <span className="text-sm">{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarRail />
+    </Sidebar>
+  )
+}
+
+// Main Dashboard Component
 export function DashboardPatient() {
-  const [showNotification, setShowNotification] = useState(true)
-
   // Sample patient data
   const patientData = {
     name: "John Smith",
@@ -64,287 +184,364 @@ export function DashboardPatient() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Welcome, {patientData.name}!</h1>
-          <p className="mt-2 text-gray-600">Manage your health easily in one place</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Bell className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="flex flex-col items-start">
-                <span className="font-medium">Appointment Reminder</span>
-                <span className="text-xs text-muted-foreground">Tomorrow, 10:30 AM - General Practice</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start">
-                <span className="font-medium">Lab Results Available</span>
-                <span className="text-xs text-muted-foreground">Today, 08:15 AM</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <User className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sign Out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+    <div className="min-h-screen flex flex-col">
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset className="flex flex-col">
+          {/* Header - Modern Design */}
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/40 px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30">
+            <SidebarTrigger className="-ml-1 hover:bg-accent/50 transition-colors" />
+            <Separator orientation="vertical" className="mr-2 h-4 bg-border/60" />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbPage className="font-medium text-foreground">Dashboard</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
 
-      {showNotification && (
-        <Alert className="bg-blue-50 border-blue-200">
-          <AlertCircle className="h-4 w-4 text-blue-600" />
-          <AlertTitle className="text-blue-800">Appointment Reminder</AlertTitle>
-          <AlertDescription className="text-blue-700">
-            You have an appointment with Dr. Michael Brown on April 15, 2023 at 10:30 AM in General Practice.
-          </AlertDescription>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute right-2 top-2 text-blue-800 hover:text-blue-900 hover:bg-blue-100"
-            onClick={() => setShowNotification(false)}
-          >
-            &times;
-          </Button>
-        </Alert>
-      )}
+            {/* Header Actions */}
+            <div className="ml-auto flex items-center gap-2">
+              {/* Profile Dropdown in Header - Modern Design */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="relative h-9 w-9 rounded-full hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-center size-8 rounded-full bg-gradient-to-br from-[#3FB6F6] to-[#34D399] text-white font-semibold text-sm">
+                      JS
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">John Smith</p>
+                      <p className="text-xs leading-none text-muted-foreground">john.smith@email.com</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="hover:bg-accent/50">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="hover:bg-accent/50">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="hover:bg-accent/50 text-red-600 focus:text-red-600">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sign Out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </header>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Queue Status Card */}
-        <Card className="border-l-4 border-l-[#3FB6F6] overflow-hidden">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Current Queue Status</CardTitle>
-            <CardDescription>Your current queue information</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">Queue Number</p>
-                  <p className="text-2xl font-bold text-[#3FB6F6]">{queueData.queueNumber}</p>
-                </div>
-                <Badge className={getStatusColor(queueData.status)}>{queueData.status}</Badge>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">Service</p>
-                  <p>{queueData.service}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">Date & Time</p>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3 text-gray-400" />
-                    <p>
-                      {queueData.date}, {queueData.time}
-                    </p>
+          {/* Main Content with Padding */}
+          <div className="flex-1 flex flex-col">
+            <div className="flex-1 p-4 md:p-6 lg:p-8">
+              <div className="space-y-8">
+                {/* Welcome Section */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900">Welcome, {patientData.name}!</h1>
+                    <p className="mt-2 text-gray-600">Manage your health easily in one place</p>
                   </div>
                 </div>
+
+                {/* Main Cards - Queue and Medical Records in 2 columns */}
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  {/* Queue Status Card */}
+                  <Card className="border-l-4 border-l-[#3FB6F6] overflow-hidden">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg">Current Queue Status</CardTitle>
+                      <CardDescription>Your current queue information</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-gray-500">Queue Number</p>
+                            <p className="text-2xl font-bold text-[#3FB6F6]">{queueData.queueNumber}</p>
+                          </div>
+                          <Badge className={getStatusColor(queueData.status)}>{queueData.status}</Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-gray-500">Service</p>
+                            <p>{queueData.service}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-gray-500">Date & Time</p>
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3 text-gray-400" />
+                              <p>
+                                {queueData.date}, {queueData.time}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="pt-0">
+                      <Link href="/appointments" passHref>
+                        <Button variant="ghost" className="p-0 h-auto text-[#3FB6F6] hover:text-[#34D399]">
+                          <span>View Queue Details</span>
+                          <ChevronRight className="ml-1 h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </CardFooter>
+                  </Card>
+
+                  {/* Medical Records Summary Card */}
+                  <Card className="border-l-4 border-l-[#34D399] overflow-hidden">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg">Medical Records Summary</CardTitle>
+                      <CardDescription>Your health information</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-gray-500">Total Visits</p>
+                            <p className="text-2xl font-bold text-[#34D399]">{patientData.totalVisits}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-gray-500">Last Visit</p>
+                            <p>{patientData.lastVisitDate}</p>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-gray-500">Last Diagnosis</p>
+                          <p>{patientData.lastDiagnosis}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-gray-500">Doctor</p>
+                          <p>{patientData.lastDoctor}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="pt-0">
+                      <Link href="/medical-records" passHref>
+                        <Button variant="ghost" className="p-0 h-auto text-[#34D399] hover:text-[#3FB6F6]">
+                          <span>View Medical Records</span>
+                          <ChevronRight className="ml-1 h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </CardFooter>
+                  </Card>
+                </div>
+
+                {/* Ask AI & Thank You Section */}
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+                  {/* Ask AI Card (3/4 width) */}
+                  <Card className="border-l-4 border-l-purple-500 overflow-hidden col-span-4 md:col-span-3">
+                    <div className="flex flex-col md:flex-row h-full">
+                      {/* Left Image Section */}
+                      <div className="md:w-1/3 w-full pr-0 pt-6 pb-6 pl-6">
+                        <img
+                          src="/illustrations/chatbot.jpg"
+                          alt="Chatbot Illustration"
+                          className="object-contain w-full h-full md:rounded-none rounded-t-2xl"
+                        />
+                      </div>
+
+                      {/* Right Content Section */}
+                      <div className="flex-1 p-6 flex flex-col justify-between">
+                        <div>
+                          <CardHeader className="pb-4 px-0">
+                            <CardTitle className="text-2xl mb-2">Ask AI</CardTitle>
+                            <CardDescription className="text-base">
+                              Get instant health answers from our AI assistant
+                            </CardDescription>
+                          </CardHeader>
+
+                          <CardContent className="px-0">
+                            <p className="text-sm text-gray-600 leading-relaxed mb-4">
+                              Chat with our intelligent AI assistant for quick answers about
+                              symptoms, medications, and health tips. Available 24/7 to help with
+                              your health questions and provide reliable medical information.
+                            </p>
+
+                            <div className="flex flex-wrap gap-2">
+                              <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                                Symptom Checker
+                              </span>
+                              <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                                Medication Info
+                              </span>
+                              <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                                Health Tips
+                              </span>
+                            </div>
+                          </CardContent>
+                        </div>
+
+                        <CardFooter className="pt-4 px-0">
+                          <Link href="/ask-ai" passHref>
+                            <Button className="bg-purple-500 hover:bg-purple-600 text-white px-8 py-2">
+                              Start Conversation
+                              <ChevronRight className="ml-2 h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </CardFooter>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Thank You Card (1/4 width) */}
+                <Card className="relative overflow-hidden col-span-4 md:col-span-1 flex flex-col justify-between text-white p-6">
+                    {/* Background Image */}
+                    <Image
+                      src="/illustrations/signin-signup.jpg"
+                      alt="Background Illustration"
+                      fill
+                      className="object-cover z-0"
+                      priority
+                    />
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-gray-900/70 to-slate-900/80 z-10"></div>
+
+                    {/* Text Content */}
+                    <div className="relative z-20 flex flex-col justify-center h-full space-y-4">
+                      <CardHeader className="pb-0">
+                        <CardTitle className="text-lg text-white">Thank You!</CardTitle>
+                        <CardDescription className="text-sm text-gray-200">
+                          We’re glad you’re here.
+                        </CardDescription>
+                      </CardHeader>
+
+                      <CardContent className="pt-0">
+                        <p className="text-sm text-gray-100 leading-relaxed">
+                          Thank you for trusting <strong>HealthSync</strong> with your healthcare.
+                          We’re committed to helping you manage your health with confidence and clarity.
+                          Explore your records, appointments, and AI-powered features — all in one place.
+                        </p>
+                      </CardContent>
+                    </div>
+                  </Card>
+                </div>
               </div>
             </div>
-          </CardContent>
-          <CardFooter className="pt-0">
-            <Link href="/appointments" passHref>
-              <Button variant="ghost" className="p-0 h-auto text-[#3FB6F6] hover:text-[#34D399]">
-                <span>View Queue Details</span>
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
-            </Link>
-          </CardFooter>
-        </Card>
 
-        {/* Medical Records Summary Card */}
-        <Card className="border-l-4 border-l-[#34D399] overflow-hidden">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Medical Records Summary</CardTitle>
-            <CardDescription>Your health information</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">Total Visits</p>
-                  <p className="text-2xl font-bold text-[#34D399]">{patientData.totalVisits}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">Last Visit</p>
-                  <p>{patientData.lastVisitDate}</p>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-500">Last Diagnosis</p>
-                <p>{patientData.lastDiagnosis}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-500">Doctor</p>
-                <p>{patientData.lastDoctor}</p>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="pt-0">
-            <Link href="/medical-records" passHref>
-              <Button variant="ghost" className="p-0 h-auto text-[#34D399] hover:text-[#3FB6F6]">
-                <span>View Medical Records</span>
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
-            </Link>
-          </CardFooter>
-        </Card>
-      </div>
+        {/* Modern Footer */}
+              <footer className="bg-gray-900 text-white">
+                <div className="container mx-auto px-4 sm:px-6 py-16">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+                    {/* Brand Section */}
+                      <div className="md:col-span-2">
+                        <Link href="/landing" className="flex items-center mb-6">
+                          <div className="mr-3 h-10 w-10 overflow-hidden rounded-xl">
+                            <img
+                              src="/illustrations/logo.png"
+                              alt="HealthSync Logo"
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                          <span className="text-2xl font-bold bg-gradient-to-r from-[#3FB6F6] via-[#34D399] to-[#10B981] bg-clip-text text-transparent">
+                            HealthSync
+                          </span>
+                        </Link>
+                        <p className="text-gray-400 mb-8 max-w-md leading-relaxed">
+                          Revolutionizing healthcare management with secure, integrated digital medical records. Connecting
+                          patients, doctors, and facilities for better health outcomes.
+                        </p>
+                      <div className="flex space-x-6">
+                        <Link href="#" className="text-gray-400 hover:text-[#3FB6F6] transition-colors duration-200">
+                          <Facebook size={24} />
+                          <span className="sr-only">Facebook</span>
+                        </Link>
+                        <Link href="#" className="text-gray-400 hover:text-[#3FB6F6] transition-colors duration-200">
+                          <Twitter size={24} />
+                          <span className="sr-only">Twitter</span>
+                        </Link>
+                        <Link href="#" className="text-gray-400 hover:text-[#3FB6F6] transition-colors duration-200">
+                          <Instagram size={24} />
+                          <span className="sr-only">Instagram</span>
+                        </Link>
+                        <Link href="#" className="text-gray-400 hover:text-[#3FB6F6] transition-colors duration-200">
+                          <Mail size={24} />
+                          <span className="sr-only">Email</span>
+                        </Link>
+                      </div>
+                    </div>
 
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Quick Navigation</h2>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <Link href="/appointments" passHref>
-            <Card className="hover:border-[#3FB6F6] hover:shadow-md transition-all duration-200 cursor-pointer h-full">
-              <CardContent className="flex flex-col items-center justify-center p-6 text-center h-full">
-                <div className="rounded-full bg-gradient-to-r from-[#3FB6F6]/20 to-[#34D399]/20 p-3 mb-3">
-                  <Calendar className="h-6 w-6 text-[#3FB6F6]" />
-                </div>
-                <CardTitle className="text-base">Book Appointment</CardTitle>
-                <CardDescription className="text-xs mt-1">Schedule your visit</CardDescription>
-              </CardContent>
-            </Card>
-          </Link>
+                    {/* Quick Links */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-6">Quick Links</h3>
+                      <ul className="space-y-4">
+                        <li>
+                          <Link href="#about" className="text-gray-400 hover:text-white transition-colors duration-200">
+                            About Us
+                          </Link>
+                        </li>
+                        <li>
+                          <Link href="#features" className="text-gray-400 hover:text-white transition-colors duration-200">
+                            Features
+                          </Link>
+                        </li>
+                        <li>
+                          <Link href="#testimonials" className="text-gray-400 hover:text-white transition-colors duration-200">
+                            Testimonials
+                          </Link>
+                        </li>
+                        <li>
+                          <Link href="/register" className="text-gray-400 hover:text-white transition-colors duration-200">
+                            Get Started
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
 
-          <Link href="/medical-records" passHref>
-            <Card className="hover:border-[#3FB6F6] hover:shadow-md transition-all duration-200 cursor-pointer h-full">
-              <CardContent className="flex flex-col items-center justify-center p-6 text-center h-full">
-                <div className="rounded-full bg-gradient-to-r from-[#3FB6F6]/20 to-[#34D399]/20 p-3 mb-3">
-                  <FileText className="h-6 w-6 text-[#3FB6F6]" />
-                </div>
-                <CardTitle className="text-base">Medical Records</CardTitle>
-                <CardDescription className="text-xs mt-1">View your health history</CardDescription>
-              </CardContent>
-            </Card>
-          </Link>
+                    {/* Support */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-6">Support</h3>
+                      <ul className="space-y-4">
+                        <li>
+                          <Link href="#" className="text-gray-400 hover:text-white transition-colors duration-200">
+                            Help Center
+                          </Link>
+                        </li>
+                        <li>
+                          <Link href="#" className="text-gray-400 hover:text-white transition-colors duration-200">
+                            Contact Us
+                          </Link>
+                        </li>
+                        <li>
+                          <Link href="#" className="text-gray-400 hover:text-white transition-colors duration-200">
+                            Privacy Policy
+                          </Link>
+                        </li>
+                        <li>
+                          <Link href="#" className="text-gray-400 hover:text-white transition-colors duration-200">
+                            Terms of Service
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
 
-          <Link href="/appointment-history" passHref>
-            <Card className="hover:border-[#3FB6F6] hover:shadow-md transition-all duration-200 cursor-pointer h-full">
-              <CardContent className="flex flex-col items-center justify-center p-6 text-center h-full">
-                <div className="rounded-full bg-gradient-to-r from-[#3FB6F6]/20 to-[#34D399]/20 p-3 mb-3">
-                  <ClipboardList className="h-6 w-6 text-[#3FB6F6]" />
+                  <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
+                    <p className="text-gray-400 text-sm">© 2025 HealthSync. All rights reserved.</p>
+                    <div className="flex items-center space-x-6 mt-4 md:mt-0">
+                      <div className="flex items-center space-x-2 text-sm text-gray-400">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span>HIPAA Compliant</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-sm text-gray-400">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span>SOC 2 Certified</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <CardTitle className="text-base">Appointment History</CardTitle>
-                <CardDescription className="text-xs mt-1">View your visit history</CardDescription>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/settings" passHref>
-            <Card className="hover:border-[#3FB6F6] hover:shadow-md transition-all duration-200 cursor-pointer h-full">
-              <CardContent className="flex flex-col items-center justify-center p-6 text-center h-full">
-                <div className="rounded-full bg-gradient-to-r from-[#3FB6F6]/20 to-[#34D399]/20 p-3 mb-3">
-                  <Settings className="h-6 w-6 text-[#3FB6F6]" />
-                </div>
-                <CardTitle className="text-base">Account Settings</CardTitle>
-                <CardDescription className="text-xs mt-1">Manage profile and preferences</CardDescription>
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Latest Announcements</h2>
-        <Card>
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-green-100 text-green-800 border-green-200">New</Badge>
-                  <h3 className="font-medium">Telemedicine Service Available</h3>
-                </div>
-                <p className="text-sm text-gray-600">
-                  You can now consult with doctors online through our telemedicine feature. This service is available
-                  for all HealthSync patients.
-                </p>
-              </div>
-              <Separator />
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-blue-100 text-blue-800 border-blue-200">Info</Badge>
-                  <h3 className="font-medium">Holiday Operating Hours</h3>
-                </div>
-                <p className="text-sm text-gray-600">
-                  During the holiday period from April 10-15, 2023, we will only handle emergency cases. Normal services
-                  will resume on April 16, 2023.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <footer className="border-t pt-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div>
-            <h3 className="text-sm font-medium mb-2">Help</h3>
-            <ul className="space-y-1 text-sm text-gray-600">
-              <li>
-                <Link href="/help" className="hover:text-[#3FB6F6]">
-                  Help Center
-                </Link>
-              </li>
-              <li>
-                <Link href="/faq" className="hover:text-[#3FB6F6]">
-                  FAQ
-                </Link>
-              </li>
-            </ul>
+              </footer>
           </div>
-          <div>
-            <h3 className="text-sm font-medium mb-2">Contact</h3>
-            <ul className="space-y-1 text-sm text-gray-600">
-              <li>Phone: (555) 123-4567</li>
-              <li>Email: info@healthsync.com</li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-sm font-medium mb-2">Policies</h3>
-            <ul className="space-y-1 text-sm text-gray-600">
-              <li>
-                <Link href="/privacy" className="hover:text-[#3FB6F6]">
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms" className="hover:text-[#3FB6F6]">
-                  Terms & Conditions
-                </Link>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className="mt-6 text-center text-xs text-gray-500">
-          <p>&copy; 2023 HealthSync. All Rights Reserved.</p>
-        </div>
-      </footer>
+        </SidebarInset>
+      </SidebarProvider>
     </div>
   )
 }
