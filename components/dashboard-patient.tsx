@@ -1,16 +1,11 @@
 "use client"
 
 import Image from "next/image"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
-  Facebook,
-  Instagram,
-  Twitter,
-  Mail,
   Calendar,
   Clock,
   FileText,
@@ -21,15 +16,7 @@ import {
   LogOut,
   Home,
   MessageCircle,
-} from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -43,42 +30,21 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
+import { Header } from "./ui/header"; // Import reusable Header
+import { Footer } from "./ui/footer"; // Import reusable Footer
 
-// Navigation items - Updated with better organization
+// Navigation items
 const navigationItems = [
-  {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: Home,
-    isActive: true,
-  },
-  {
-    title: "Appointments",
-    url: "/appointments",
-    icon: Calendar,
-  },
-  {
-    title: "Medical Records",
-    url: "/medical-records",
-    icon: FileText,
-  },
-  {
-    title: "Ask AI",
-    url: "/ask-ai",
-    icon: MessageCircle,
-  },
-  {
-    title: "Settings",
-    url: "/settings",
-    icon: Settings,
-  },
-]
+  { title: "Dashboard", url: "/dashboard", icon: Home, isActive: true },
+  { title: "Appointments", url: "/appointments", icon: Calendar },
+  { title: "Medical Records", url: "/medical-records", icon: FileText },
+  { title: "Ask AI", url: "/ask-ai", icon: MessageCircle },
+  { title: "Settings", url: "/settings", icon: Settings },
+];
 
-// App Sidebar Component - Modern Design
+// App Sidebar Component
 function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -90,7 +56,6 @@ function AppSidebar() {
                 href="/dashboard"
                 className="flex items-center gap-3 px-2 group-data-[collapsible=icon]:justify-center"
               >
-                {/* The icon container now holds the Image component */}
                 <div className="flex aspect-square size-10 items-center justify-center rounded-xl pl-2 pt-2">
                   <Image src="/illustrations/logo.png" alt="HealthSync Logo" width={28} height={28} />
                 </div>
@@ -103,7 +68,6 @@ function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-
       <SidebarContent className="px-2 py-4">
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground/80 uppercase tracking-wider mb-2 px-2">
@@ -137,10 +101,9 @@ function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }
 
 // Main Dashboard Component
@@ -152,7 +115,7 @@ export function DashboardPatient() {
     lastDiagnosis: "Type 2 Diabetes Mellitus",
     lastDoctor: "Dr. Michael Brown, MD",
     lastVisitDate: "March 12, 2023",
-  }
+  };
 
   // Sample queue data
   const queueData = {
@@ -160,22 +123,22 @@ export function DashboardPatient() {
     service: "General Practice",
     date: "April 15, 2023",
     time: "10:30 AM",
-    status: "Waiting", // Waiting, Called, Completed
-  }
+    status: "Waiting",
+  };
 
   // Function to get queue status color
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Waiting":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
       case "Called":
-        return "bg-blue-100 text-blue-800 border-blue-200"
+        return "bg-blue-100 text-blue-800 border-blue-200";
       case "Completed":
-        return "bg-green-100 text-green-800 border-green-200"
+        return "bg-green-100 text-green-800 border-green-200";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -250,7 +213,7 @@ export function DashboardPatient() {
                   </div>
                 </div>
 
-                {/* Main Cards - Queue and Medical Records in 2 columns */}
+                {/* Main Cards */}
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   {/* Queue Status Card */}
                   <Card className="border-l-4 border-l-[#3FB6F6] overflow-hidden">
@@ -335,10 +298,9 @@ export function DashboardPatient() {
 
                 {/* Ask AI & Thank You Section */}
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-                  {/* Ask AI Card (3/4 width) */}
+                  {/* Ask AI Card */}
                   <Card className="border-l-4 border-l-gray-800 overflow-hidden col-span-4 md:col-span-3">
                     <div className="flex flex-col md:flex-row h-full">
-                      {/* Left Image Section */}
                       <div className="md:w-1/3 w-full pr-0 pt-6 pb-6 pl-6">
                         <img
                           src="/illustrations/chatbot.jpg"
@@ -346,8 +308,6 @@ export function DashboardPatient() {
                           className="object-contain w-full h-full md:rounded-none rounded-t-2xl"
                         />
                       </div>
-
-                      {/* Right Content Section */}
                       <div className="flex-1 p-6 flex flex-col justify-between">
                         <div>
                           <CardHeader className="pb-4 px-0">
@@ -356,14 +316,12 @@ export function DashboardPatient() {
                               Get instant health answers from our AI assistant
                             </CardDescription>
                           </CardHeader>
-
                           <CardContent className="px-0">
                             <p className="text-sm text-gray-600 leading-relaxed mb-4">
                               Chat with our intelligent AI assistant for quick answers about symptoms, medications, and
                               health tips. Available 24/7 to help with your health questions and provide reliable
                               medical information.
                             </p>
-
                             <div className="flex flex-wrap gap-2">
                               <span className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-xs font-medium">
                                 Symptom Checker
@@ -377,7 +335,6 @@ export function DashboardPatient() {
                             </div>
                           </CardContent>
                         </div>
-
                         <CardFooter className="pt-4 px-0">
                           <Link href="/ask-ai" passHref>
                             <Button className="bg-gray-800 hover:bg-gray-700 text-white px-8 py-2">
@@ -390,9 +347,8 @@ export function DashboardPatient() {
                     </div>
                   </Card>
 
-                  {/* Thank You Card (1/4 width) */}
-                  <Card className="relative overflow-hidden col-span-4 md:col-span-1 flex flex-col justify-between text-white p-6">
-                    {/* Background Image */}
+                  {/* Thank You Card */}
+                    <Card className="relative overflow-hidden col-span-4 md:col-span-1 flex flex-col justify-between text-white p-6">
                     <Image
                       src="/illustrations/signin-signup.jpg"
                       alt="Background Illustration"
@@ -400,16 +356,12 @@ export function DashboardPatient() {
                       className="object-cover z-0"
                       priority
                     />
-                    {/* Gradient Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-br from-gray-900/70 to-slate-900/80 z-10"></div>
-
-                    {/* Text Content */}
                     <div className="relative z-20 flex flex-col justify-center h-full space-y-4">
                       <CardHeader className="pb-0">
                         <CardTitle className="text-lg text-white">Thank You!</CardTitle>
                         <CardDescription className="text-sm text-gray-200">We're glad you're here.</CardDescription>
                       </CardHeader>
-
                       <CardContent className="pt-0">
                         <p className="text-sm text-gray-100 leading-relaxed">
                           Thank you for trusting <strong>HealthSync</strong> with your healthcare. We're committed to
@@ -548,5 +500,5 @@ export function DashboardPatient() {
         </SidebarInset>
       </SidebarProvider>
     </div>
-  )
+  );
 }
