@@ -1,3 +1,6 @@
+"use client"
+
+import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,7 +39,6 @@ export function Header({ pageTitle }: HeaderProps) {
 
       {/* Header Actions */}
       <div className="ml-auto flex items-center gap-2">
-        {/* Profile Dropdown in Header - Modern Design */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -56,16 +58,24 @@ export function Header({ pageTitle }: HeaderProps) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="hover:bg-accent/50">
-              <User className="mr-2 h-4 w-4" />
-              <span>Profile</span>
+            
+            <DropdownMenuItem asChild className="hover:bg-accent/50 cursor-pointer">
+              <Link href="/profile">
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem className="hover:bg-accent/50">
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
+            
+            <DropdownMenuItem asChild className="hover:bg-accent/50 cursor-pointer">
+              <Link href="/settings">
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </Link>
             </DropdownMenuItem>
+            
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="hover:bg-accent/50 text-red-600 focus:text-red-600">
+            
+            <DropdownMenuItem className="hover:bg-accent/50 text-red-600 focus:text-red-600 cursor-pointer">
               <LogOut className="mr-2 h-4 w-4" />
               <span>Sign Out</span>
             </DropdownMenuItem>
