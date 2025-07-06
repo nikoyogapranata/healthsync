@@ -90,9 +90,9 @@ function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
-              <Link href="/dashboard" className="flex items-center gap-3 px-2">
+              <Link href="/dashboard" className="flex items-center gap-3 px-2 group-data-[collapsible=icon]:justify-center">
                 {/* The icon container now holds the Image component */}
-                <div className="flex aspect-square size-10 items-center justify-center rounded-xl">
+                <div className="flex aspect-square size-10 items-center justify-center rounded-xl pl-2 pt-2">
                   <Image
                     src="/illustrations/logo.png"
                     alt="HealthSync Logo"
@@ -100,7 +100,7 @@ function AppSidebar() {
                     height={28}
                   />
                 </div>
-                <div className="flex flex-col gap-0.5 leading-none">
+                <div className="flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
                   <span className="font-bold text-lg text-foreground">HealthSync</span>
                   <span className="text-xs text-muted-foreground font-medium">Patient Dashboard</span>
                 </div>
@@ -134,7 +134,7 @@ function AppSidebar() {
                   >
                     <Link href={item.url} className="flex items-center gap-3">
                       <item.icon className="size-5" />
-                      <span className="text-sm">{item.title}</span>
+                      <span className="text-sm group-data-[collapsible=icon]:hidden">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
