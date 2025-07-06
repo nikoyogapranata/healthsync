@@ -338,7 +338,7 @@ export function DashboardPatient() {
                 {/* Ask AI & Thank You Section */}
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
                   {/* Ask AI Card (3/4 width) */}
-                  <Card className="border-l-4 border-l-purple-500 overflow-hidden col-span-4 md:col-span-3">
+                  <Card className="border-l-4 border-l-gray-800 overflow-hidden col-span-4 md:col-span-3">
                     <div className="flex flex-col md:flex-row h-full">
                       {/* Left Image Section */}
                       <div className="md:w-1/3 w-full pr-0 pt-6 pb-6 pl-6">
@@ -367,13 +367,13 @@ export function DashboardPatient() {
                             </p>
 
                             <div className="flex flex-wrap gap-2">
-                              <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                              <span className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-xs font-medium">
                                 Symptom Checker
                               </span>
-                              <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                              <span className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-xs font-medium">
                                 Medication Info
                               </span>
-                              <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                              <span className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-xs font-medium">
                                 Health Tips
                               </span>
                             </div>
@@ -382,7 +382,7 @@ export function DashboardPatient() {
 
                         <CardFooter className="pt-4 px-0">
                           <Link href="/ask-ai" passHref>
-                            <Button className="bg-purple-500 hover:bg-purple-600 text-white px-8 py-2">
+                            <Button className="bg-gray-800 hover:bg-gray-700 text-white px-8 py-2">
                               Start Conversation
                               <ChevronRight className="ml-2 h-4 w-4" />
                             </Button>
