@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import {
   ChevronRight,
   Home,
   MessageCircle,
+  Loader2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,10 +31,23 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { Header } from "./ui/header"; // Import reusable Header
-import { Footer } from "./ui/footer"; // Import reusable Footer
+import { Header } from "./ui/header";
+import { Footer } from "./ui/footer";
+import { supabase } from "@/lib/supabase";
 
-// Navigation items
+interface DashboardData {
+  name: string;
+  totalVisits: number;
+  lastDiagnosis: string;
+  lastDoctor: string;
+  lastVisitDate: string;
+  queueNumber: string;
+  service: string;
+  queueDate: string;
+  queueTime: string;
+  status: string;
+}
+
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home, isActive: true },
   { title: "Appointments", url: "/appointments", icon: Calendar },
@@ -41,7 +56,6 @@ const navigationItems = [
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
-// App Sidebar Component
 function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -105,63 +119,143 @@ function AppSidebar() {
   );
 }
 
-// Main Dashboard Component
 export function DashboardPatient() {
-  // Sample patient data
-  const patientData = {
-    name: "John Smith",
-    totalVisits: 12,
-    lastDiagnosis: "Type 2 Diabetes Mellitus",
-    lastDoctor: "Dr. Michael Brown, MD",
-    lastVisitDate: "March 12, 2023",
-  };
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Sample queue data
-  const queueData = {
-    queueNumber: "A-17",
-    service: "General Practice",
-    date: "April 15, 2023",
-    time: "10:30 AM",
-    status: "Waiting",
-  };
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      const patientId = '9b9c562e-cf5e-44b7-a108-9897a0654aaa';
 
-  // Function to get queue status color
+      try {
+        const { data: ehrInfo, error: ehrError } = await supabase
+          .from('ehr')
+          .select(`
+            created_at,
+            patients (
+              full_name
+            ),
+            doctors (
+              full_name
+            ),
+            diagnosis (
+              diagnosis_description,
+              queue (
+                queue_number,
+                status,
+                department,
+                created_at
+              )
+            )
+          `)
+          .eq('patient_id', patientId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (ehrError) throw ehrError;
+        if (!ehrInfo) throw new Error("No electronic health records found for this patient.");
+
+        const { count: totalVisits, error: countError } = await supabase
+          .from('ehr')
+          .select('*', { count: 'exact', head: true })
+          .eq('patient_id', patientId);
+
+        if (countError) throw countError;
+        
+        // --- FIX IS HERE ---
+        // Extract the single record from each array using [0].
+        const patientRecord = Array.isArray(ehrInfo.patients) ? ehrInfo.patients[0] : ehrInfo.patients;
+        const doctorRecord = Array.isArray(ehrInfo.doctors) ? ehrInfo.doctors[0] : ehrInfo.doctors;
+        const diagnosisRecord = Array.isArray(ehrInfo.diagnosis) ? ehrInfo.diagnosis[0] : ehrInfo.diagnosis;
+        const queueRecord = Array.isArray(diagnosisRecord?.queue) ? diagnosisRecord.queue[0] : diagnosisRecord?.queue;
+
+        const visitDate = new Date(ehrInfo.created_at);
+        const queueDate = new Date(queueRecord?.created_at || ehrInfo.created_at);
+
+        const processedData: DashboardData = {
+          // Use the extracted single records
+          name: patientRecord?.full_name || 'Patient',
+          totalVisits: totalVisits || 0,
+          lastDiagnosis: diagnosisRecord?.diagnosis_description || 'N/A',
+          lastDoctor: doctorRecord?.full_name || 'N/A',
+          lastVisitDate: visitDate.toLocaleDateString('en-GB', {
+            day: 'numeric', month: 'long', year: 'numeric'
+          }),
+          queueNumber: queueRecord?.queue_number || 'N/A',
+          service: queueRecord?.department || 'N/A',
+          status: queueRecord?.status || 'Completed',
+          queueDate: queueDate.toLocaleDateString('en-GB', {
+            day: 'numeric', month: 'long', year: 'numeric'
+          }),
+          queueTime: queueDate.toLocaleTimeString('en-US', {
+            hour: '2-digit', minute: '2-digit', hour12: true
+          }),
+        };
+        
+        setDashboardData(processedData);
+
+      } catch (err: any) {
+        console.error("Error fetching dashboard data:", err);
+        setError(err.message || "Failed to fetch data. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Waiting":
+    switch (status.toLowerCase()) {
+      case "waiting":
         return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "Called":
+      case "called":
         return "bg-blue-100 text-blue-800 border-blue-200";
-      case "Completed":
+      case "completed":
         return "bg-green-100 text-green-800 border-green-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
+  
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-[#3FB6F6]" />
+        <p className="ml-4 text-lg">Loading Dashboard...</p>
+      </div>
+    );
+  }
 
+  if (error || !dashboardData) {
+    return (
+      <div className="flex justify-center items-center h-screen text-red-600">
+        <p>Error: {error || "Could not load dashboard data."}</p>
+      </div>
+    );
+  }
+
+  // The rest of the return statement (JSX) is identical and does not need to be changed.
   return (
     <div className="min-h-screen flex flex-col">
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset className="flex flex-col">
-          {/* Use the reusable Header component */}
           <Header pageTitle="Dashboard" />
 
-          {/* Main Content with Padding */}
           <div className="flex-1 flex flex-col">
             <div className="flex-1 p-4 md:p-6 lg:p-8">
               <div className="space-y-8">
-                {/* Welcome Section */}
                 <div className="flex items-center justify-between">
                   <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Welcome, {patientData.name}!</h1>
+                    <h1 className="text-3xl font-bold text-gray-900">Welcome, {dashboardData.name}!</h1>
                     <p className="mt-2 text-gray-600">Manage your health easily in one place</p>
                   </div>
                 </div>
 
-                {/* Main Cards */}
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  {/* Queue Status Card */}
                   <Card className="border-l-4 border-l-[#3FB6F6] overflow-hidden">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-lg">Current Queue Status</CardTitle>
@@ -172,21 +266,21 @@ export function DashboardPatient() {
                         <div className="flex items-center justify-between">
                           <div className="space-y-1">
                             <p className="text-sm font-medium text-gray-500">Queue Number</p>
-                            <p className="text-2xl font-bold text-[#3FB6F6]">{queueData.queueNumber}</p>
+                            <p className="text-2xl font-bold text-[#3FB6F6]">{dashboardData.queueNumber}</p>
                           </div>
-                          <Badge className={getStatusColor(queueData.status)}>{queueData.status}</Badge>
+                          <Badge className={getStatusColor(dashboardData.status)}>{dashboardData.status}</Badge>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-1">
                             <p className="text-sm font-medium text-gray-500">Service</p>
-                            <p>{queueData.service}</p>
+                            <p>{dashboardData.service}</p>
                           </div>
                           <div className="space-y-1">
                             <p className="text-sm font-medium text-gray-500">Date & Time</p>
                             <div className="flex items-center gap-1">
                               <Clock className="h-3 w-3 text-gray-400" />
                               <p>
-                                {queueData.date}, {queueData.time}
+                                {dashboardData.queueDate}, {dashboardData.queueTime}
                               </p>
                             </div>
                           </div>
@@ -203,7 +297,6 @@ export function DashboardPatient() {
                     </CardFooter>
                   </Card>
 
-                  {/* Medical Records Summary Card */}
                   <Card className="border-l-4 border-l-[#34D399] overflow-hidden">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-lg">Medical Records Summary</CardTitle>
@@ -214,20 +307,20 @@ export function DashboardPatient() {
                         <div className="flex items-center justify-between">
                           <div className="space-y-1">
                             <p className="text-sm font-medium text-gray-500">Total Visits</p>
-                            <p className="text-2xl font-bold text-[#34D399]">{patientData.totalVisits}</p>
+                            <p className="text-2xl font-bold text-[#34D399]">{dashboardData.totalVisits}</p>
                           </div>
                           <div className="space-y-1">
                             <p className="text-sm font-medium text-gray-500">Last Visit</p>
-                            <p>{patientData.lastVisitDate}</p>
+                            <p>{dashboardData.lastVisitDate}</p>
                           </div>
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-gray-500">Last Diagnosis</p>
-                          <p>{patientData.lastDiagnosis}</p>
+                          <p>{dashboardData.lastDiagnosis}</p>
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-gray-500">Doctor</p>
-                          <p>{patientData.lastDoctor}</p>
+                          <p>{dashboardData.lastDoctor}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -242,9 +335,7 @@ export function DashboardPatient() {
                   </Card>
                 </div>
 
-                {/* Ask AI & Thank You Section */}
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-                  {/* Ask AI Card */}
                   <Card className="border-l-4 border-l-gray-800 overflow-hidden col-span-4 md:col-span-3">
                     <div className="flex flex-col md:flex-row h-full">
                       <div className="md:w-1/3 w-full pr-0 pt-6 pb-6 pl-6">
@@ -292,8 +383,6 @@ export function DashboardPatient() {
                       </div>
                     </div>
                   </Card>
-
-                  {/* Thank You Card */}
                   <Card className="relative overflow-hidden col-span-4 md:col-span-1 flex flex-col justify-between text-white p-6">
                     <Image
                       src="/illustrations/signin-signup.jpg"
@@ -320,10 +409,10 @@ export function DashboardPatient() {
                     </div>
                   </Card>
                 </div>
+
               </div>
             </div>
 
-            {/* Use the reusable Footer component */}
             <Footer />
           </div>
         </SidebarInset>
