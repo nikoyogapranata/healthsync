@@ -37,7 +37,7 @@ import {
   CheckCircle,
   AlertCircle,
 } from "lucide-react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createClient } from "@/utils/supabase/client";
 import { createAdminUser, createDirectorUser } from "@/app/actions/admin-actions"
 import { fetchUserStats, fetchAllUsers } from "@/app/actions/superadmin-actions"
 
@@ -108,7 +108,7 @@ export function SuperadminDashboard() {
     facilityId: "",
   })
 
-  const supabase = createClientComponentClient()
+  const supabase = createClient();
 
   // Fetch all data on component mount
   useEffect(() => {
@@ -175,98 +175,86 @@ export function SuperadminDashboard() {
   }
 
   const fetchUsers = async () => {
-    setLoading(true)
-    try {
-      // First get all users using server action
-      const usersResult = await fetchAllUsers()
+  setLoading(true);
+  try {
+    const usersResult = await fetchAllUsers();
 
-      if (!usersResult.success) {
-        throw new Error(usersResult.error)
-      }
-
-      const usersData = usersResult.data
-
-      // Fetch additional profile data for each user
-      const enrichedUsers = await Promise.all(
-        usersData.map(async (user) => {
-          let profileData = {}
-
-          // Try to get email verification status, but don't fail if it doesn't work
-          let emailConfirmed = null
-          try {
-            const { data: authUser } = await supabase.auth.admin.getUserById(user.user_id)
-            emailConfirmed = authUser.user?.email_confirmed_at
-          } catch (error) {
-            console.log("Could not fetch auth data for user:", user.user_id)
-            // Set as verified by default if we can't check
-            emailConfirmed = new Date().toISOString()
-          }
-
-          if (user.role === "patient") {
-            const { data } = await supabase.from("patients").select("full_name").eq("user_id", user.user_id).single()
-            profileData = data || {}
-          } else if (user.role === "doctor") {
-            const { data } = await supabase
-              .from("doctors")
-              .select("full_name, active_status")
-              .eq("user_id", user.user_id)
-              .single()
-            profileData = data || {}
-          } else if (user.role === "admin") {
-            const { data } = await supabase
-              .from("admins")
-              .select(`
-              full_name,
-              healthcare_facilities(name)
-            `)
-              .eq("user_id", user.user_id)
-              .single()
-            profileData = {
-              full_name: data?.full_name,
-              healthcare_facility: data?.healthcare_facilities?.name,
-            }
-          } else if (user.role === "director") {
-            const { data } = await supabase
-              .from("directors")
-              .select(`
-              full_name,
-              healthcare_facilities(name)
-            `)
-              .eq("user_id", user.user_id)
-              .single()
-            profileData = {
-              full_name: data?.full_name,
-              healthcare_facility: data?.healthcare_facilities?.name,
-            }
-          }
-
-          return {
-            ...user,
-            ...profileData,
-            active_status: profileData.active_status ?? true,
-            email_confirmed_at: emailConfirmed,
-          }
-        }),
-      )
-
-      setUsers(enrichedUsers)
-    } catch (error) {
-      console.error("Error fetching users:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load users",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
+    if (!usersResult.success) {
+      throw new Error(usersResult.error || "An unknown error occurred while fetching users.");
     }
+
+    const usersData = usersResult.data;
+
+    // Add this check to ensure usersData is not null/undefined
+    if (!usersData) {
+      setUsers([]);
+      // You can optionally throw an error or just return
+      console.log("No user data was returned.");
+      return; 
+    }
+
+    const enrichedUsers = await Promise.all(
+      usersData.map(async (user) => {
+        let profileData: any = {};
+
+        if (user.role === "patient") {
+          const { data } = await supabase.from("patients").select("full_name").eq("user_id", user.user_id).single();
+          profileData = data || {};
+        } else if (user.role === "doctor") {
+          const { data } = await supabase
+            .from("doctors")
+            .select("full_name, active_status")
+            .eq("user_id", user.user_id)
+            .single();
+          profileData = data || {};
+        } else if (user.role === "admin") {
+          const { data } = await supabase
+            .from("admins")
+            .select(`full_name, healthcare_facilities(name)`)
+            .eq("user_id", user.user_id)
+            .single();
+          profileData = {
+            full_name: data?.full_name,
+            healthcare_facility: (data?.healthcare_facilities as any)?.name,
+          };
+        } else if (user.role === "director") {
+          const { data } = await supabase
+            .from("directors")
+            .select(`full_name, healthcare_facilities(name)`)
+            .eq("user_id", user.user_id)
+            .single();
+          profileData = {
+            full_name: data?.full_name,
+            healthcare_facility: (data?.healthcare_facilities as any)?.name,
+          };
+        }
+
+        return {
+          ...user,
+          ...profileData,
+          active_status: profileData.active_status ?? true,
+        };
+      })
+    );
+
+    setUsers(enrichedUsers);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    toast({
+      title: "Error",
+      description: "Failed to load users",
+      variant: "destructive",
+    });
+  } finally {
+    setLoading(false);
   }
+};
 
   const fetchStatsData = async () => {
     try {
       const result = await fetchUserStats()
 
-      if (result.success) {
+      if (result.success && result.data) {
         setStats(result.data)
       } else {
         console.error("Error fetching stats:", result.error)
