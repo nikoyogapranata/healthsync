@@ -1,14 +1,8 @@
+// app/actions/admin-actions.ts
+
 "use server"
 
-import { createClient } from "@supabase/supabase-js"
-
-// Create a service role client that bypasses RLS
-const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-})
+import { createClient } from "@/utils/supabase/server";
 
 export async function createAdminUser(formData: {
   fullName: string
@@ -16,133 +10,122 @@ export async function createAdminUser(formData: {
   password: string
   facilityId: string
 }) {
-  try {
-    // Check if email already exists
-    const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers()
-    const emailExists = existingUser.users.some((user) => user.email === formData.email)
+  const supabase = createClient();
 
-    if (emailExists) {
-      return { success: false, message: "An account with this email already exists" }
-    }
-
-    // Create user in Supabase Auth (requires email verification)
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: formData.email,
-      password: formData.password,
-      email_confirm: false, // Requires email verification
-      user_metadata: {
+  // Step 1: Create the user in Supabase's authentication system.
+  const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+    email: formData.email,
+    password: formData.password,
+    options: {
+      data: {
         full_name: formData.fullName,
-        role: "admin",
+        role: "admin", // Metadata for the auth user
       },
-    })
+    },
+  });
 
-    if (authError) throw authError
+  if (signUpError) {
+    console.error("Error signing up admin:", signUpError.message);
+    return { success: false, message: signUpError.message };
+  }
 
-    if (authData.user) {
-      // Create user record (bypasses RLS with service role)
-      const { error: userError } = await supabaseAdmin.from("users").insert({
-        user_id: authData.user.id,
-        email: formData.email,
+  if (user) {
+    // Step 2: Create a corresponding record in your public 'users' table to satisfy the foreign key.
+    const { error: publicUserError } = await supabase.from("users").insert({
+        user_id: user.id,
+        email: user.email,
         role: "admin",
-        password: "managed_by_supabase_auth",
-      })
+    });
 
-      if (userError) throw userError
-
-      // Create admin record
-      const { error: adminError } = await supabaseAdmin.from("admins").insert({
-        admin_id: crypto.randomUUID(),
-        user_id: authData.user.id,
-        healthcare_facility_id: formData.facilityId,
-        full_name: formData.fullName,
-        employee_id: `ADM-${Date.now()}`,
-      })
-
-      if (adminError) throw adminError
-
-      // Send verification email
-      await supabaseAdmin.auth.admin.generateLink({
-        type: "signup",
-        email: formData.email,
-      })
-
-      return {
-        success: true,
-        message: `Admin account created successfully! A verification email has been sent to ${formData.email}`,
-      }
+    if (publicUserError) {
+        console.error("Error creating public user record:", publicUserError.message);
+        // Clean up the auth user if this step fails
+        await supabase.auth.admin.deleteUser(user.id);
+        return { success: false, message: "Failed to create user record." };
     }
 
-    throw new Error("Failed to create user")
-  } catch (error: any) {
-    console.error("Error creating admin:", error)
-    return { success: false, message: error.message || "Failed to create admin" }
+    // Step 3: Now that the public user exists, create the admin profile.
+    const { error: adminError } = await supabase.from("admins").insert({
+      admin_id: crypto.randomUUID(),
+      user_id: user.id,
+      healthcare_facility_id: formData.facilityId,
+      full_name: formData.fullName,
+    });
+
+    if (adminError) {
+      console.error("Error creating admin profile:", adminError.message);
+      // Clean up both the auth user and the public user record
+      await supabase.auth.admin.deleteUser(user.id);
+      return { success: false, message: "Failed to create admin profile." };
+    }
+
+    return {
+      success: true,
+      message: `Admin account for ${formData.email} created. A verification email has been sent.`,
+    };
   }
+
+  return { success: false, message: "An unknown error occurred." };
 }
 
 export async function createDirectorUser(formData: {
-  fullName: string
+  fullName:string
   email: string
   password: string
   facilityId: string
 }) {
-  try {
-    // Check if email already exists
-    const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers()
-    const emailExists = existingUser.users.some((user) => user.email === formData.email)
+  const supabase = createClient();
 
-    if (emailExists) {
-      return { success: false, message: "An account with this email already exists" }
-    }
-
-    // Create user in Supabase Auth (requires email verification)
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: formData.email,
-      password: formData.password,
-      email_confirm: false, // Requires email verification
-      user_metadata: {
+  // Step 1: Create the user in Supabase's authentication system.
+  const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+    email: formData.email,
+    password: formData.password,
+    options: {
+      data: {
         full_name: formData.fullName,
         role: "director",
       },
-    })
+    },
+  });
 
-    if (authError) throw authError
+  if (signUpError) {
+    console.error("Error signing up director:", signUpError.message);
+    return { success: false, message: signUpError.message };
+  }
 
-    if (authData.user) {
-      // Create user record (bypasses RLS with service role)
-      const { error: userError } = await supabaseAdmin.from("users").insert({
-        user_id: authData.user.id,
-        email: formData.email,
+  if (user) {
+    // Step 2: Create a corresponding record in your public 'users' table.
+    const { error: publicUserError } = await supabase.from("users").insert({
+        user_id: user.id,
+        email: user.email,
         role: "director",
-        password: "managed_by_supabase_auth",
-      })
+    });
 
-      if (userError) throw userError
-
-      // Create director record
-      const { error: directorError } = await supabaseAdmin.from("directors").insert({
-        director_id: crypto.randomUUID(),
-        user_id: authData.user.id,
-        healthcare_facility_id: formData.facilityId,
-        full_name: formData.fullName,
-      })
-
-      if (directorError) throw directorError
-
-      // Send verification email
-      await supabaseAdmin.auth.admin.generateLink({
-        type: "signup",
-        email: formData.email,
-      })
-
-      return {
-        success: true,
-        message: `Director account created successfully! A verification email has been sent to ${formData.email}`,
-      }
+    if (publicUserError) {
+        console.error("Error creating public user record:", publicUserError.message);
+        await supabase.auth.admin.deleteUser(user.id);
+        return { success: false, message: "Failed to create user record." };
     }
 
-    throw new Error("Failed to create user")
-  } catch (error: any) {
-    console.error("Error creating director:", error)
-    return { success: false, message: error.message || "Failed to create director" }
+    // Step 3: Now that the public user exists, create the director profile.
+    const { error: directorError } = await supabase.from("directors").insert({
+      director_id: crypto.randomUUID(),
+      user_id: user.id,
+      healthcare_facility_id: formData.facilityId,
+      full_name: formData.fullName,
+    });
+
+    if (directorError) {
+      console.error("Error creating director profile:", directorError.message);
+      await supabase.auth.admin.deleteUser(user.id);
+      return { success: false, message: "Failed to create director profile." };
+    }
+
+    return {
+      success: true,
+      message: `Director account for ${formData.email} created. A verification email has been sent.`,
+    };
   }
+
+  return { success: false, message: "An unknown error occurred." };
 }

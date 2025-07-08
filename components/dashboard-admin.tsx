@@ -1,625 +1,214 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { toast } from "@/components/ui/use-toast"
+  Sidebar, SidebarProvider, SidebarContent, SidebarHeader,
+  SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset,
+  SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarRail
+} from "@/components/ui/sidebar";
+import { Header } from "@/components/ui/header";
+import { Footer } from "@/components/ui/footer";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Clock, BriefcaseMedical, XCircle, LayoutDashboard } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { createClient } from "@supabase/supabase-js";
 import {
-  Users,
-  Settings,
-  BarChart3,
-  Shield,
-  Database,
-  Plus,
-  Search,
-  Filter,
-  Eye,
-  Edit,
-  Trash2,
-  Bell,
-  User,
-  LogOut,
-  Activity,
-  TrendingUp,
-} from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer
+} from "recharts";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+const navigationItems = [
+  { title: "Dashboard", url: "/admin-dashboard", icon: LayoutDashboard },
+  { title: "Queue Management", url: "/admin-queue", icon: Clock },
+  { title: "Doctor Management", url: "/admin/doctors", icon: BriefcaseMedical },
+];
 
 export function DashboardAdmin() {
-  const [showAddUserDialog, setShowAddUserDialog] = useState(false)
+  const pathname = usePathname();
+  const [stats, setStats] = useState({
+    patientsInQueue: 0,
+    totalDoctors: 0,
+    unpaidTransactions: 0,
+  });
+  const [doctorSpecializationData, setDoctorSpecializationData] = useState<any[]>([]);
+  const [queueStatsData, setQueueStatsData] = useState<any[]>([]);
 
-  // Sample admin data
-  const adminData = {
-    totalUsers: 1247,
-    totalDoctors: 45,
-    totalPatients: 1180,
-    systemUptime: "99.9%",
-  }
+  useEffect(() => {
+    const fetchStats = async () => {
+      const { count: doctorsCount } = await supabase
+        .from("doctors")
+        .select("*", { count: "exact", head: true });
 
-  // Sample user data
-  const userData = [
-    {
-      id: 1,
-      name: "Dr. John Smith",
-      email: "john.smith@healthsync.com",
-      role: "Doctor",
-      department: "Cardiology",
-      status: "Active",
-      lastLogin: "2023-12-15 09:30",
-    },
-    {
-      id: 2,
-      name: "Sarah Johnson",
-      email: "sarah.johnson@healthsync.com",
-      role: "Nurse",
-      department: "Emergency",
-      status: "Active",
-      lastLogin: "2023-12-15 08:15",
-    },
-    {
-      id: 3,
-      name: "Michael Brown",
-      email: "michael.brown@healthsync.com",
-      role: "Admin",
-      department: "IT",
-      status: "Inactive",
-      lastLogin: "2023-12-14 17:45",
-    },
-    {
-      id: 4,
-      name: "Emily Wilson",
-      email: "emily.wilson@healthsync.com",
-      role: "Doctor",
-      department: "Pediatrics",
-      status: "Active",
-      lastLogin: "2023-12-15 10:20",
-    },
-  ]
+      const { count: queueCount } = await supabase
+      .from("queue")
+      .select("*", { count: "exact", head: true })
+      .eq("queue_status", "waiting");
 
-  // Sample system logs
-  const systemLogs = [
-    {
-      id: 1,
-      timestamp: "2023-12-15 10:30:15",
-      level: "INFO",
-      message: "User login successful: john.smith@healthsync.com",
-      module: "Authentication",
-    },
-    {
-      id: 2,
-      timestamp: "2023-12-15 10:25:42",
-      level: "WARNING",
-      message: "Failed login attempt: invalid.user@example.com",
-      module: "Authentication",
-    },
-    {
-      id: 3,
-      timestamp: "2023-12-15 10:20:18",
-      level: "INFO",
-      message: "Database backup completed successfully",
-      module: "Database",
-    },
-    {
-      id: 4,
-      timestamp: "2023-12-15 10:15:33",
-      level: "ERROR",
-      message: "API rate limit exceeded for IP: 192.168.1.100",
-      module: "API Gateway",
-    },
-  ]
+    const { count: unpaidCount } = await supabase
+      .from("queue")
+      .select("*", { count: "exact", head: true })
+      .eq("payment_status", "Not Paid");
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Active":
-        return "bg-green-100 text-green-800 border-green-200"
-      case "Inactive":
-        return "bg-red-100 text-red-800 border-red-200"
-      case "Pending":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
-    }
-  }
 
-  const getLogLevelColor = (level: string) => {
-    switch (level) {
-      case "INFO":
-        return "bg-blue-100 text-blue-800 border-blue-200"
-      case "WARNING":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "ERROR":
-        return "bg-red-100 text-red-800 border-red-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
-    }
-  }
+      setStats({
+        patientsInQueue: queueCount || 0,
+        totalDoctors: doctorsCount || 0,
+        unpaidTransactions: unpaidCount || 0,
+      });
+    };
 
-  const handleAddUser = () => {
-    toast({
-      title: "User Added",
-      description: "New user has been successfully added to the system",
-      duration: 3000,
-    })
-    setShowAddUserDialog(false)
-  }
+    const fetchDoctorSpecializations = async () => {
+      const { data, error } = await supabase
+        .from("doctors")
+        .select("specialization");
+
+      if (!error && data) {
+        const grouped = data.reduce((acc: any, cur: any) => {
+          const spec = cur.specialization || "Unknown";
+          acc[spec] = (acc[spec] || 0) + 1;
+          return acc;
+        }, {});
+        const chartData = Object.entries(grouped).map(([name, value]) => ({ name, value }));
+        setDoctorSpecializationData(chartData);
+      }
+    };
+
+    const fetchQueueStats = async () => {
+      const { data, error } = await supabase.rpc("queue_counts_by_day"); // Optional: Create a Postgres function
+      if (!error && data) {
+        setQueueStatsData(data);
+      }
+    };
+
+    fetchStats();
+    fetchDoctorSpecializations();
+    fetchQueueStats(); // Uncomment if you have queue counts by day
+  }, []);
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">System Administration</h1>
-          <p className="mt-2 text-gray-600">Manage users, system settings, and monitor system health</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Bell className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>System Alerts</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="flex flex-col items-start">
-                <span className="font-medium">High CPU Usage</span>
-                <span className="text-xs text-muted-foreground">Server load at 85% - Monitor required</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start">
-                <span className="font-medium">Failed Login Attempts</span>
-                <span className="text-xs text-muted-foreground">15 failed attempts in last hour</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <User className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Admin Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>System Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sign Out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+    <SidebarProvider>
+      <Sidebar collapsible="icon" className="border-r-0">
+        <SidebarHeader className="border-b border-border/40 pb-4">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
+                <Link href="/admin/dashboard" className="flex items-center gap-3 px-2 group-data-[collapsible=icon]:justify-center">
+                  <div className="flex aspect-square size-10 items-center justify-center rounded-xl pl-2 pt-2">
+                    <Image
+                      src="/illustrations/logo.png"
+                      alt="HealthSync Logo"
+                      width={28}
+                      height={28}
+                      onError={(e) => {
+                        e.currentTarget.src = 'https://placehold.co/28x28/34D399/FFFFFF?text=HS';
+                      }}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
+                    <span className="font-bold text-lg text-foreground">HealthSync</span>
+                    <span className="text-xs text-muted-foreground font-medium">Admin Panel</span>
+                  </div>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarContent className="px-2 py-4">
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground/80 uppercase tracking-wider mb-2 px-2">Navigation</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-1">
+                {navigationItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === item.url}
+                      tooltip={item.title}
+                      className={cn(
+                        "h-11 px-3 rounded-lg font-medium transition-all duration-200",
+                        "hover:bg-accent/50 hover:text-accent-foreground",
+                        "data-[active=true]:bg-gradient-to-r data-[active=true]:from-[#3FB6F6]/10 data-[active=true]:to-[#34D399]/10",
+                        "data-[active=true]:border data-[active=true]:border-[#3FB6F6]/20",
+                        "data-[active=true]:text-[#3FB6F6] data-[active=true]:font-semibold",
+                        "data-[active=true]:shadow-sm",
+                      )}
+                    >
+                      <Link href={item.url} className="flex items-center gap-3">
+                        <item.icon className="size-5" />
+                        <span className="text-sm group-data-[collapsible=icon]:hidden">{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarRail />
+      </Sidebar>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-        <Card className="border-l-4 border-l-[#3FB6F6]">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Total Users</p>
-                <p className="text-2xl font-bold text-[#3FB6F6]">{adminData.totalUsers}</p>
-              </div>
-              <Users className="h-8 w-8 text-[#3FB6F6]" />
+      {/* Main Content */}
+      <SidebarInset className="flex flex-col min-h-screen">
+        <Header pageTitle="Admin Dashboard" />
+        <main className="flex-1 p-4 md:p-8">
+          <div className="space-y-8">
+            <h2 className="text-2xl font-semibold text-gray-800">Today's Overview</h2>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Patients in Queue</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.patientsInQueue}</div>
+                  <p className="text-xs text-muted-foreground">Total active queues today</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Doctors</CardTitle>
+                  <BriefcaseMedical className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalDoctors}</div>
+                  <p className="text-xs text-muted-foreground">Registered medical doctors</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Unpaid Transactions</CardTitle>
+                  <XCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.unpaidTransactions}</div>
+                  <p className="text-xs text-muted-foreground">Queues awaiting payment</p>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
 
-        <Card className="border-l-4 border-l-[#34D399]">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Active Doctors</p>
-                <p className="text-2xl font-bold text-[#34D399]">{adminData.totalDoctors}</p>
-              </div>
-              <Shield className="h-8 w-8 text-[#34D399]" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-[#F59E0B]">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Total Patients</p>
-                <p className="text-2xl font-bold text-[#F59E0B]">{adminData.totalPatients}</p>
-              </div>
-              <Activity className="h-8 w-8 text-[#F59E0B]" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-[#8B5CF6]">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">System Uptime</p>
-                <p className="text-2xl font-bold text-[#8B5CF6]">{adminData.systemUptime}</p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-[#8B5CF6]" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="users" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="users">User Management</TabsTrigger>
-          <TabsTrigger value="system">System Health</TabsTrigger>
-          <TabsTrigger value="logs">System Logs</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="users" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    User Management
-                  </CardTitle>
-                  <CardDescription>Manage system users and their permissions</CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filter
-                  </Button>
-                  <Button
-                    className="bg-gradient-to-r from-[#3FB6F6] to-[#34D399]"
-                    onClick={() => setShowAddUserDialog(true)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add User
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4">
-                <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
-                  <Input placeholder="Search users..." className="pl-8" />
-                </div>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Last Login</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {userData.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.role}</TableCell>
-                      <TableCell>{user.department}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(user.status)}>{user.status}</Badge>
-                      </TableCell>
-                      <TableCell>{user.lastLogin}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="system" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                System Health Monitoring
-              </CardTitle>
-              <CardDescription>Monitor system performance and health metrics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card className="border-l-4 border-l-green-500">
-                  <CardContent className="p-4">
-                    <div className="space-y-2">
-                      <h3 className="font-semibold">Database Status</h3>
-                      <p className="text-2xl font-bold text-green-600">Online</p>
-                      <p className="text-sm text-gray-600">Response time: 45ms</p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-l-4 border-l-yellow-500">
-                  <CardContent className="p-4">
-                    <div className="space-y-2">
-                      <h3 className="font-semibold">Server Load</h3>
-                      <p className="text-2xl font-bold text-yellow-600">75%</p>
-                      <p className="text-sm text-gray-600">CPU usage moderate</p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-l-4 border-l-blue-500">
-                  <CardContent className="p-4">
-                    <div className="space-y-2">
-                      <h3 className="font-semibold">Memory Usage</h3>
-                      <p className="text-2xl font-bold text-blue-600">62%</p>
-                      <p className="text-sm text-gray-600">8.2GB / 16GB used</p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-l-4 border-l-purple-500">
-                  <CardContent className="p-4">
-                    <div className="space-y-2">
-                      <h3 className="font-semibold">Active Sessions</h3>
-                      <p className="text-2xl font-bold text-purple-600">247</p>
-                      <p className="text-sm text-gray-600">Current user sessions</p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-l-4 border-l-red-500">
-                  <CardContent className="p-4">
-                    <div className="space-y-2">
-                      <h3 className="font-semibold">Failed Logins</h3>
-                      <p className="text-2xl font-bold text-red-600">15</p>
-                      <p className="text-sm text-gray-600">Last 24 hours</p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-l-4 border-l-indigo-500">
-                  <CardContent className="p-4">
-                    <div className="space-y-2">
-                      <h3 className="font-semibold">API Requests</h3>
-                      <p className="text-2xl font-bold text-indigo-600">12.5K</p>
-                      <p className="text-sm text-gray-600">Requests per hour</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="logs" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                System Logs
-              </CardTitle>
-              <CardDescription>View and monitor system activity logs</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4 flex gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
-                  <Input placeholder="Search logs..." className="pl-8" />
-                </div>
-                <Select>
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="info">INFO</SelectItem>
-                    <SelectItem value="warning">WARNING</SelectItem>
-                    <SelectItem value="error">ERROR</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Timestamp</TableHead>
-                    <TableHead>Level</TableHead>
-                    <TableHead>Module</TableHead>
-                    <TableHead>Message</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {systemLogs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="font-mono text-sm">{log.timestamp}</TableCell>
-                      <TableCell>
-                        <Badge className={getLogLevelColor(log.level)}>{log.level}</Badge>
-                      </TableCell>
-                      <TableCell>{log.module}</TableCell>
-                      <TableCell>{log.message}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="settings" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                System Settings
-              </CardTitle>
-              <CardDescription>Configure system-wide settings and preferences</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-6 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Security Settings</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label>Two-Factor Authentication</Label>
-                      <Button variant="outline" size="sm">
-                        Configure
-                      </Button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label>Password Policy</Label>
-                      <Button variant="outline" size="sm">
-                        Edit
-                      </Button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label>Session Timeout</Label>
-                      <Button variant="outline" size="sm">
-                        Set
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">System Maintenance</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label>Database Backup</Label>
-                      <Button variant="outline" size="sm">
-                        Schedule
-                      </Button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label>System Updates</Label>
-                      <Button variant="outline" size="sm">
-                        Check
-                      </Button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label>Log Rotation</Label>
-                      <Button variant="outline" size="sm">
-                        Configure
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Add User Dialog */}
-      <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Add New User</DialogTitle>
-            <DialogDescription>Create a new user account for the HealthSync system</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input placeholder="Enter first name" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input placeholder="Enter last name" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input type="email" placeholder="Enter email address" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="doctor">Doctor</SelectItem>
-                    <SelectItem value="nurse">Nurse</SelectItem>
-                    <SelectItem value="admin">Administrator</SelectItem>
-                    <SelectItem value="staff">Staff</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="department">Department</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cardiology">Cardiology</SelectItem>
-                    <SelectItem value="emergency">Emergency</SelectItem>
-                    <SelectItem value="pediatrics">Pediatrics</SelectItem>
-                    <SelectItem value="it">IT</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="permissions">Permissions</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select permission level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="read">Read Only</SelectItem>
-                  <SelectItem value="write">Read & Write</SelectItem>
-                  <SelectItem value="admin">Full Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Chart Section */}
+            <h2 className="text-xl font-semibold mt-10 text-gray-800">Doctor Specializations</h2>
+            <Card className="p-4">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={doctorSpecializationData}>
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#3FB6F6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddUserDialog(false)}>
-              Cancel
-            </Button>
-            <Button className="bg-gradient-to-r from-[#3FB6F6] to-[#34D399]" onClick={handleAddUser}>
-              Add User
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
+        </main>
+        <Footer />
+      </SidebarInset>
+    </SidebarProvider>
+  );
 }
