@@ -90,7 +90,7 @@ export async function registerPatient(formData: {
       console.error("User table error:", userError)
       // Clean up auth user if database insert fails
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-      return { success: false, message: `Failed to create user record: ${userError.message}` }
+      return { success: false, message: 'Failed to create user record: ${userError.message}' }
     }
 
     // Step 5: Add patient details, including the new national_id
@@ -117,7 +117,7 @@ export async function registerPatient(formData: {
       // Clean up both auth user and users table entries
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       await supabaseAdmin.from("users").delete().eq("user_id", authData.user.id)
-      return { success: false, message: `Failed to create patient profile: ${patientError.message}` }
+      return { success: false, message: 'Failed to create patient profile: ${patientError.message}' }
     }
 
     console.log("Patient registration successful!")
