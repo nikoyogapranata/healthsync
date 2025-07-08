@@ -33,7 +33,8 @@ import {
 import { cn } from "@/lib/utils";
 import { Header } from "./ui/header";
 import { Footer } from "./ui/footer";
-import { supabase } from "@/lib/supabase";
+// Correctly import the browser-safe Supabase client
+import { createClient } from "@/utils/supabase/client";
 
 interface DashboardData {
   name: string;
@@ -123,12 +124,33 @@ export function DashboardPatient() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Create a supabase client instance for this component
+  const supabase = createClient();
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      const patientId = '9b9c562e-cf5e-44b7-a108-9897a0654aaa';
-
       try {
+        // 1. Get the currently logged-in user from Supabase Auth
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+          throw new Error("User not logged in.");
+        }
+
+        // 2. Find the patient_id associated with the logged-in user's ID
+        const { data: patientProfile, error: patientError } = await supabase
+          .from('patients')
+          .select('patient_id, full_name') // Also get the name here for the fallback case
+          .eq('user_id', user.id) // Match the user.id from Auth
+          .single();
+
+        if (patientError || !patientProfile) {
+          throw new Error("Could not find a patient profile for the current user.");
+        }
+
+        const dynamicPatientId = patientProfile.patient_id; // This is now the dynamic ID
+
+        // 3. Use the dynamic patient ID to fetch the dashboard data
         const { data: ehrInfo, error: ehrError } = await supabase
           .from('ehr')
           .select(`
@@ -149,23 +171,41 @@ export function DashboardPatient() {
               )
             )
           `)
-          .eq('patient_id', patientId)
+          .eq('patient_id', dynamicPatientId) // Use the dynamic ID here
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
 
-        if (ehrError) throw ehrError;
+        // 4. Handle new users who might not have any EHR records yet
+        if (ehrError) {
+            // This case handles users with a profile but no medical history
+            setDashboardData({
+                name: patientProfile.full_name || 'New User',
+                totalVisits: 0,
+                lastDiagnosis: 'No diagnosis on record',
+                lastDoctor: 'N/A',
+                lastVisitDate: 'N/A',
+                queueNumber: 'N/A',
+                service: 'N/A',
+                queueDate: 'N/A',
+                queueTime: 'N/A',
+                status: 'None',
+            });
+            // We set loading to false and exit the function successfully
+            setLoading(false);
+            return; 
+        }
+
         if (!ehrInfo) throw new Error("No electronic health records found for this patient.");
 
         const { count: totalVisits, error: countError } = await supabase
           .from('ehr')
           .select('*', { count: 'exact', head: true })
-          .eq('patient_id', patientId);
+          .eq('patient_id', dynamicPatientId);
 
         if (countError) throw countError;
-        
-        // --- FIX IS HERE ---
-        // Extract the single record from each array using [0].
+
+        // 5. Process the data for existing users
         const patientRecord = Array.isArray(ehrInfo.patients) ? ehrInfo.patients[0] : ehrInfo.patients;
         const doctorRecord = Array.isArray(ehrInfo.doctors) ? ehrInfo.doctors[0] : ehrInfo.doctors;
         const diagnosisRecord = Array.isArray(ehrInfo.diagnosis) ? ehrInfo.diagnosis[0] : ehrInfo.diagnosis;
@@ -175,7 +215,6 @@ export function DashboardPatient() {
         const queueDate = new Date(queueRecord?.created_at || ehrInfo.created_at);
 
         const processedData: DashboardData = {
-          // Use the extracted single records
           name: patientRecord?.full_name || 'Patient',
           totalVisits: totalVisits || 0,
           lastDiagnosis: diagnosisRecord?.diagnosis_description || 'N/A',
@@ -205,7 +244,7 @@ export function DashboardPatient() {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [supabase]); // Added supabase client as a dependency
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -237,7 +276,6 @@ export function DashboardPatient() {
     );
   }
 
-  // The rest of the return statement (JSX) is identical and does not need to be changed.
   return (
     <div className="min-h-screen flex flex-col">
       <SidebarProvider>
@@ -412,7 +450,7 @@ export function DashboardPatient() {
 
               </div>
             </div>
-
+            
             <Footer />
           </div>
         </SidebarInset>
