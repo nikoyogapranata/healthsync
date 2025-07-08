@@ -1,7 +1,11 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react" // Import useRef
 import Link from "next/link"
 import Image from "next/image"
+
+// PDF Generation Imports
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
 
 // --- Icon Imports ---
 import {
@@ -16,14 +20,11 @@ import {
   Phone,
   Mail,
   MapPin,
-  Activity,
-  Clock,
-  Bell,
-  User,
-  Shield,
+  HeartPulse,
   Home,
   Settings,
-  HelpCircle,
+  User,
+  Loader2,
 } from "lucide-react"
 
 // --- Reusable Layout Components ---
@@ -62,122 +63,176 @@ import {
 import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { createClient } from "@/utils/supabase/client"
+import { Skeleton } from "@/components/ui/skeleton"
 
 // --- TypeScript Interfaces ---
 interface Patient {
-  id: string
-  name: string
-  dateOfBirth: string
+  patient_id: string
+  full_name: string
+  date_of_birth: string
   gender: string
-  bloodType: string
-  allergies: string[]
-  phone: string
-  email: string
+  blood_type: string
+  phone_number: string
   address: string
-  insuranceStatus: string
-  chronicDiseases: string[]
-  emergencyContact: {
-    name: string
-    relationship: string
-    phone: string
-  }
+  users: { email: string } | null
+  patient_allergies: { reaction: string; severity: string, allergy_type: { name: string } }[]
 }
 
 interface EHRRecord {
-  id: string
-  patientId: string
-  facilityId: string
-  facilityName: string
-  createdDate: string
-  lastUpdated: string
-  status: "active" | "archived" | "transferred"
-  primaryDoctor: string
-  diagnoses: Diagnosis[]
-  prescriptions: Prescription[]
-  labResults: LabResult[]
-  medicalNotes: MedicalNote[]
-  vaccinations: Vaccination[]
+  ehr_id: string
+  created_at: string
+  updated_at: string
+  healthcare_facilities: { name: string } | null
+  doctors: { full_name: string } | null
+  diagnosis: any[]
+  prescriptions: any[]
+  examinations: any[]
+  physical_examinations: any[]
+  doctor_notes: any[]
+  vaccinations: any[]
 }
 
-interface Diagnosis {
-  id: string
-  date: string
-  time: string
-  doctor: string
-  diagnosis: string
-  treatment: string
-  notes: string
-  followUpRequired: boolean
-  icd10Code?: string
+
+// --- PDF GENERATION LOGIC ---
+const generateEHR_PDF = (patient: Patient, ehr: EHRRecord) => {
+  const doc = new jsPDF();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let y = 15; // Vertical position tracker
+
+  // Helper function to add a section with a title
+  const addSection = (title: string, content: () => void) => {
+    if (y > pageHeight - 40) { // Check for page break before adding new section
+      doc.addPage();
+      y = 15;
+    }
+    doc.setFontSize(16);
+    doc.text(title, 14, y);
+    y += 8;
+    doc.setFontSize(11);
+    content();
+  };
+
+  // --- PDF Header ---
+  doc.setFontSize(22);
+  doc.text("HealthSync Medical Record Summary", 14, y);
+  y += 10;
+  
+  // --- Patient Information ---
+  addSection("Patient Information", () => {
+    autoTable(doc, {
+      startY: y,
+      body: [
+        ['Name', patient.full_name],
+        ['Date of Birth', new Date(patient.date_of_birth).toLocaleDateString()],
+        ['Gender', patient.gender],
+        ['Contact', `${patient.phone_number} | ${patient.users?.email}`],
+        ['Address', patient.address],
+      ],
+      theme: 'grid',
+      styles: { cellPadding: 2, fontSize: 10 },
+    });
+    y = (doc as any).lastAutoTable.finalY + 10;
+  });
+
+  // --- Visit Information ---
+  addSection("Visit Information", () => {
+     autoTable(doc, {
+      startY: y,
+      body: [
+        ['Facility', ehr.healthcare_facilities?.name || 'N/A'],
+        ['Attending Doctor', ehr.doctors?.full_name || 'N/A'],
+        ['Date of Visit', new Date(ehr.created_at).toLocaleDateString()],
+      ],
+      theme: 'grid',
+    });
+    y = (doc as any).lastAutoTable.finalY + 10;
+  });
+  
+  // --- Diagnoses Section ---
+  if(ehr.diagnosis.length > 0) {
+    addSection("Diagnoses", () => {
+      autoTable(doc, {
+        startY: y,
+        head: [['Date', 'Diagnosis', 'Doctor', 'Treatment Plan']],
+        body: ehr.diagnosis.map((d: any) => [
+          new Date(d.created_at).toLocaleDateString(),
+          d.diagnosis_description,
+          d.doctors.full_name,
+          d.treatment_plan
+        ]),
+        theme: 'striped',
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    });
+  }
+
+  // --- Medications Section ---
+  if(ehr.prescriptions.length > 0) {
+    addSection("Medications Prescribed", () => {
+       autoTable(doc, {
+        startY: y,
+        head: [['Date', 'Medication', 'Dosage', 'Instructions']],
+        body: ehr.prescriptions.map((p: any) => [
+          new Date(p.created_at).toLocaleDateString(),
+          p.medication_name,
+          p.dosage,
+          p.instruction
+        ]),
+        theme: 'striped',
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    });
+  }
+
+  // --- Examinations Section ---
+  if(ehr.examinations.length > 0) {
+    addSection("Examinations & Lab Results", () => {
+      autoTable(doc, {
+        startY: y,
+        head: [['Date', 'Test Name', 'Type', 'Note']],
+        body: ehr.examinations.map((e: any) => [
+          new Date(e.created_at).toLocaleDateString(),
+          e.examination_name,
+          e.examination_type,
+          e.note || 'N/A'
+        ]),
+        theme: 'striped',
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    });
+  }
+
+  // --- Physical Exam Section ---
+  if(ehr.physical_examinations.length > 0) {
+     const exam = ehr.physical_examinations[0];
+     addSection("Physical Examination", () => {
+      autoTable(doc, {
+        startY: y,
+        body: [
+          [{content: 'Vitals', colSpan: 4, styles: { fontStyle: 'bold' }}],
+          ['Heart Rate', `${exam.heart_rate} bpm`, 'Blood Pressure', `${exam.blood_pressure} mmHg`],
+          ['Temperature', `${exam.temperature} °C`, 'Oxygen Saturation', `${exam.oxygen_saturation} %`],
+          [{content: `Observations: ${exam.general_observations}`, colSpan: 4}],
+          [{content: `Findings: ${exam.findings}`, colSpan: 4}],
+        ],
+        theme: 'grid',
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    });
+  }
+
+  // --- Final step: Save the PDF ---
+  doc.save(`HealthSync_Record_${patient.full_name.replace(' ', '_')}_${new Date(ehr.created_at).toLocaleDateString('en-CA')}.pdf`);
 }
 
-interface Prescription {
-  id: string
-  date: string
-  time: string
-  doctor: string
-  medication: string
-  dosage: string
-  duration: string
-  instructions: string
-  status: "active" | "completed" | "discontinued"
-}
 
-interface LabResult {
-  id: string
-  date: string
-  time: string
-  type: "laboratory" | "radiology" | "pathology"
-  testName: string
-  result: string
-  normalRange?: string
-  notes: string
-  file?: string
-  doctor: string
-  facility: string
-  status: "normal" | "abnormal" | "critical"
-}
-
-interface MedicalNote {
-  id: string
-  date: string
-  time: string
-  doctor: string
-  note: string
-  facility: string
-  category: "consultation" | "procedure" | "observation" | "discharge"
-}
-
-interface Vaccination {
-  id: string
-  date: string
-  time: string
-  vaccineType: string
-  vaccineName: string
-  dose: string
-  location: string
-  administrator: string
-  batchNumber?: string
-  nextDueDate?: string
-}
-
-interface Appointment {
-  id: string
-  date: string
-  time: string
-  doctor: string
-  facility: string
-  type: string
-  status: "scheduled" | "completed" | "cancelled"
-}
-
-// Navigation items
 const navigationItems = [
-  { title: "Dashboard", url: "/dashboard", icon: Home, isActive: true },
-  { title: "Appointments", url: "/appointments", icon: Calendar },
-  { title: "Medical Records", url: "/patients-medical-records", icon: FileText },
-  { title: "Ask AI", url: "/ask-ai", icon: MessageCircle },
-  { title: "Settings", url: "/settings", icon: Settings },
+    { title: "Dashboard", url: "/dashboard", icon: Home },
+    { title: "Appointments", url: "/appointments", icon: Calendar },
+    { title: "Medical Records", url: "/patients-medical-records", icon: FileText, isActive: true },
+    { title: "Ask AI", url: "/ask-ai", icon: MessageCircle },
+    { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 function PatientSidebar() {
@@ -188,7 +243,7 @@ function PatientSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
               <Link
-                href="/patient-dashboard"
+                href="/dashboard"
                 className="flex items-center gap-3 px-2 group-data-[collapsible=icon]:justify-center"
               >
                 <div className="flex aspect-square size-10 items-center justify-center rounded-xl pl-2 pt-2">
@@ -243,289 +298,114 @@ function PatientSidebar() {
 
 // --- Main Patient Medical Records Component ---
 export function PatientMedicalRecordsSystem() {
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [ehrRecords, setEhrRecords] = useState<EHRRecord[]>([]);
   const [selectedEHR, setSelectedEHR] = useState<EHRRecord | null>(null)
   const [activeTab, setActiveTab] = useState("overview")
-  const [showRequestDialog, setShowRequestDialog] = useState(false)
+  const [showDownloadDialog, setShowDownloadDialog] = useState(false)
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // --- Sample Patient Data ---
-  const currentPatient: Patient = {
-    id: "P001",
-    name: "John Smith",
-    dateOfBirth: "April 25, 1989",
-    gender: "Male",
-    bloodType: "O+",
-    allergies: ["Penicillin", "Shellfish"],
-    phone: "+1-555-0123",
-    email: "john.smith@email.com",
-    address: "123 Main Street, New York, NY 10001",
-    insuranceStatus: "Active",
-    chronicDiseases: ["Hypertension", "Type 2 Diabetes"],
-    emergencyContact: {
-      name: "Jane Smith",
-      relationship: "Spouse",
-      phone: "+1-555-0124",
-    },
-  }
+  const supabase = createClient();
 
-  const ehrRecords: EHRRecord[] = [
-    {
-      id: "EHR001",
-      patientId: "P001",
-      facilityId: "F001",
-      facilityName: "HealthSync General Hospital",
-      createdDate: "2023-01-15",
-      lastUpdated: "2023-12-15",
-      status: "active",
-      primaryDoctor: "Dr. Michael Brown, MD",
-      diagnoses: [
-        {
-          id: "D001",
-          date: "2023-12-15",
-          time: "14:30",
-          doctor: "Dr. Michael Brown, MD",
-          diagnosis: "Type 2 Diabetes Mellitus",
-          treatment: "Metformin 500mg twice daily, dietary counseling",
-          notes: "Patient needs monthly follow-up for blood glucose monitoring",
-          followUpRequired: true,
-          icd10Code: "E11.9",
-        },
-        {
-          id: "D002",
-          date: "2023-10-20",
-          time: "10:15",
-          doctor: "Dr. Sarah Wilson, MD",
-          diagnosis: "Essential Hypertension",
-          treatment: "Lisinopril 10mg daily, lifestyle modifications",
-          notes: "Blood pressure well controlled with current medication",
-          followUpRequired: true,
-          icd10Code: "I10",
-        },
-      ],
-      prescriptions: [
-        {
-          id: "RX001",
-          date: "2023-12-15",
-          time: "14:45",
-          doctor: "Dr. Michael Brown, MD",
-          medication: "Metformin 500mg",
-          dosage: "Twice daily with meals",
-          duration: "90 days",
-          instructions: "Take with breakfast and dinner",
-          status: "active",
-        },
-        {
-          id: "RX002",
-          date: "2023-10-20",
-          time: "10:30",
-          doctor: "Dr. Sarah Wilson, MD",
-          medication: "Lisinopril 10mg",
-          dosage: "Once daily",
-          duration: "90 days",
-          instructions: "Take in the morning",
-          status: "active",
-        },
-      ],
-      labResults: [
-        {
-          id: "LAB001",
-          date: "2023-12-15",
-          time: "09:00",
-          type: "laboratory",
-          testName: "Fasting Blood Glucose",
-          result: "145 mg/dL",
-          normalRange: "70-100 mg/dL",
-          notes: "Elevated, consistent with diabetes diagnosis",
-          doctor: "Dr. Michael Brown, MD",
-          facility: "HealthSync General Hospital",
-          status: "abnormal",
-        },
-        {
-          id: "LAB002",
-          date: "2023-12-15",
-          time: "09:00",
-          type: "laboratory",
-          testName: "HbA1c",
-          result: "7.8%",
-          normalRange: "<7.0%",
-          notes: "Diabetes control needs improvement",
-          doctor: "Dr. Michael Brown, MD",
-          facility: "HealthSync General Hospital",
-          status: "abnormal",
-        },
-      ],
-      medicalNotes: [
-        {
-          id: "NOTE001",
-          date: "2023-12-15",
-          time: "14:50",
-          doctor: "Dr. Michael Brown, MD",
-          note: "Patient reports increased thirst and frequent urination. Discussed importance of medication compliance and dietary modifications.",
-          facility: "HealthSync General Hospital",
-          category: "consultation",
-        },
-      ],
-      vaccinations: [
-        {
-          id: "VAC001",
-          date: "2023-10-01",
-          time: "11:00",
-          vaccineType: "Influenza",
-          vaccineName: "Fluzone Quadrivalent",
-          dose: "Annual",
-          location: "HealthSync General Hospital",
-          administrator: "Nurse Jennifer Adams, RN",
-          batchNumber: "FL2023-001",
-          nextDueDate: "2024-10-01",
-        },
-      ],
-    },
-    {
-      id: "EHR002",
-      patientId: "P001",
-      facilityId: "F002",
-      facilityName: "City Medical Center",
-      createdDate: "2022-06-10",
-      lastUpdated: "2023-01-10",
-      status: "transferred",
-      primaryDoctor: "Dr. Robert Davis, MD",
-      diagnoses: [
-        {
-          id: "D003",
-          date: "2022-11-15",
-          time: "09:45",
-          doctor: "Dr. Robert Davis, MD",
-          diagnosis: "Upper Respiratory Infection",
-          treatment: "Amoxicillin 500mg three times daily, rest",
-          notes: "Patient advised to drink plenty of fluids and rest",
-          followUpRequired: false,
-          icd10Code: "J06.9",
-        },
-      ],
-      prescriptions: [
-        {
-          id: "RX003",
-          date: "2022-11-15",
-          time: "10:00",
-          doctor: "Dr. Robert Davis, MD",
-          medication: "Amoxicillin 500mg",
-          dosage: "Three times daily",
-          duration: "7 days",
-          instructions: "Take with food, complete full course",
-          status: "completed",
-        },
-      ],
-      labResults: [],
-      medicalNotes: [],
-      vaccinations: [],
-    },
-  ]
+  useEffect(() => {
+    const fetchMedicalData = async () => {
+      try {
+        setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not found.");
 
-  const upcomingAppointments: Appointment[] = [
-    {
-      id: "APT001",
-      date: "2024-01-20",
-      time: "10:00 AM",
-      doctor: "Dr. Michael Brown, MD",
-      facility: "HealthSync General Hospital",
-      type: "Follow-up Consultation",
-      status: "scheduled",
-    },
-    {
-      id: "APT002",
-      date: "2024-02-15",
-      time: "2:30 PM",
-      doctor: "Dr. Sarah Wilson, MD",
-      facility: "HealthSync General Hospital",
-      type: "Blood Pressure Check",
-      status: "scheduled",
-    },
-  ]
+        const { data: patientData, error: patientError } = await supabase
+          .from('patients')
+          .select(`*, users ( email ), patient_allergies ( reaction, severity, allergy_type ( name ) )`)
+          .eq('user_id', user.id)
+          .single();
+        
+        if (patientError) throw new Error("Could not fetch patient profile.");
+        setPatient(patientData as Patient);
 
-  // Set initial EHR to the most recent active one
-  useState(() => {
-    const activeEHRs = ehrRecords.filter((ehr) => ehr.status === "active")
-    if (activeEHRs.length > 0) {
-      setSelectedEHR(
-        activeEHRs.sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime())[0],
-      )
-    }
-  })
+        const { data: ehrData, error: ehrError } = await supabase
+          .from('ehr')
+          .select(`*, healthcare_facilities ( name ), doctors ( full_name ), diagnosis ( *, doctors ( full_name ) ), prescriptions ( *, doctors ( full_name ) ), examinations ( *, doctors ( full_name ) ), physical_examinations ( *, doctors ( full_name ) ), doctor_notes ( *, doctors ( full_name ) ), vaccinations ( *, doctors ( full_name ) )`)
+          .eq('patient_id', patientData.patient_id)
+          .order('created_at', { ascending: false });
 
-  // --- Handlers ---
+        if (ehrError) throw new Error("Could not fetch health records.");
+        
+        setEhrRecords(ehrData as EHRRecord[]);
+        if (ehrData && ehrData.length > 0) {
+          setSelectedEHR(ehrData[0] as EHRRecord);
+        }
+
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMedicalData();
+  }, [supabase]);
+
   const handleEHRSelect = (ehr: EHRRecord) => {
     setSelectedEHR(ehr)
     setActiveTab("overview")
   }
 
-  const handleRequestRecords = () => {
-    toast({
-      title: "Request Submitted",
-      description: "Your medical records request has been submitted successfully",
-      duration: 3000,
-    })
-    setShowRequestDialog(false)
-  }
-
-  const handleDownloadRecord = () => {
-    toast({
-      title: "Download Started",
-      description: "Your medical records are being prepared for download",
-      duration: 3000,
-    })
-  }
-
-  // --- Helper Functions ---
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-100 text-green-800 border-green-200"
-      case "archived":
-        return "bg-gray-100 text-gray-800 border-gray-200"
-      case "transferred":
-        return "bg-blue-100 text-blue-800 border-blue-200"
-      case "normal":
-        return "bg-green-100 text-green-800 border-green-200"
-      case "abnormal":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "critical":
-        return "bg-red-100 text-red-800 border-red-200"
-      case "completed":
-        return "bg-gray-100 text-gray-800 border-gray-200"
-      case "discontinued":
-        return "bg-red-100 text-red-800 border-red-200"
-      case "scheduled":
-        return "bg-blue-100 text-blue-800 border-blue-200"
-      default:
-        return "bg-blue-100 text-blue-800 border-blue-200"
+  // --- DOWNLOAD HANDLERS ---
+  const initiateDownload = () => {
+    if (!selectedEHR) {
+      toast({ title: "No Record Selected", description: "Please select a health record to download.", variant: "destructive" });
+      return;
     }
+    setShowDownloadDialog(true);
   }
 
-  // --- Main Render Logic ---
+  const handleConfirmDownload = () => {
+     if (patient && selectedEHR) {
+        toast({ title: "Generating PDF...", description: "Your record is being prepared." });
+        generateEHR_PDF(patient, selectedEHR);
+     }
+     setShowDownloadDialog(false);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+        <p className="ml-4 text-lg">Loading Medical Records...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center">
+            <Alert variant="destructive" className="max-w-md">
+                <AlertTitle>Error Fetching Data</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+            </Alert>
+        </div>
+    )
+  }
+  
   return (
     <div className="min-h-screen flex flex-col">
       <SidebarProvider>
         <PatientSidebar />
         <SidebarInset className="flex flex-col">
-          {/* Header */}
           <Header pageTitle="My Medical Records" />
 
-          {/* Main Content */}
           <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="space-y-8">
-              {/* Welcome Header */}
               <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900">My Medical Records</h1>
                   <p className="mt-2 text-gray-600">View and manage your health information</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setShowRequestDialog(true)}>
-                    <Mail className="h-4 w-4 mr-2" />
-                    Request Records
-                  </Button>
-                  <Button variant="outline" onClick={handleDownloadRecord}>
+                  <Button variant="outline" onClick={initiateDownload}>
                     <Download className="h-4 w-4 mr-2" />
-                    Download All
+                    Download Selected Record
                   </Button>
                 </div>
               </div>
@@ -543,79 +423,50 @@ export function PatientMedicalRecordsSystem() {
                     <div className="space-y-4">
                       <div>
                         <p className="text-sm font-medium text-gray-500">Full Name</p>
-                        <p className="font-medium">{currentPatient.name}</p>
+                        <p className="font-medium">{patient?.full_name || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500">Date of Birth</p>
-                        <p>{currentPatient.dateOfBirth}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Gender</p>
-                        <p>{currentPatient.gender}</p>
+                        <p>{patient ? new Date(patient.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric'}) : 'N/A'}</p>
                       </div>
                     </div>
                     <div className="space-y-4">
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Blood Type</p>
-                        <p>{currentPatient.bloodType}</p>
+                        <p className="text-sm font-medium text-gray-500">Gender</p>
+                        <p className="capitalize">{patient?.gender || 'N/A'}</p>
                       </div>
                       <div>
+                        <p className="text-sm font-medium text-gray-500">Blood Type</p>
+                        <p>{patient?.blood_type || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                       <div>
                         <p className="text-sm font-medium text-gray-500">Phone</p>
                         <p className="flex items-center gap-1">
                           <Phone className="h-4 w-4" />
-                          {currentPatient.phone}
+                          {patient?.phone_number || 'N/A'}
                         </p>
                       </div>
-                      <div>
+                       <div>
                         <p className="text-sm font-medium text-gray-500">Email</p>
                         <p className="flex items-center gap-1">
                           <Mail className="h-4 w-4" />
-                          {currentPatient.email}
+                          {patient?.users?.email || 'N/A'}
                         </p>
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Address</p>
-                        <p className="flex items-start gap-1">
-                          <MapPin className="h-4 w-4 mt-0.5" />
-                          {currentPatient.address}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Insurance Status</p>
-                        <Badge className={getStatusColor(currentPatient.insuranceStatus.toLowerCase())}>
-                          {currentPatient.insuranceStatus}
-                        </Badge>
                       </div>
                     </div>
                   </div>
-                  <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div>
-                      <p className="text-sm font-medium text-gray-500 mb-2">Allergies</p>
+                   <div className="mt-6">
+                      <p className="text-sm font-medium text-gray-500 mb-2">Known Allergies</p>
                       <div className="flex flex-wrap gap-2">
-                        {currentPatient.allergies.map((allergy, index) => (
+                        {patient?.patient_allergies && patient.patient_allergies.length > 0 ? patient.patient_allergies.map((allergy, index) => (
                           <Badge key={index} variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                            {allergy}
+                            {allergy.allergy_type.name}
                           </Badge>
-                        ))}
+                        )) : <p className="text-sm text-gray-500">No known allergies.</p>}
                       </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500 mb-2">Chronic Conditions</p>
-                      <div className="flex flex-wrap gap-2">
-                        {currentPatient.chronicDiseases.map((disease, index) => (
-                          <Badge
-                            key={index}
-                            variant="outline"
-                            className="bg-orange-50 text-orange-700 border-orange-200"
-                          >
-                            {disease}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
 
@@ -623,15 +474,15 @@ export function PatientMedicalRecordsSystem() {
               <Card>
                 <CardHeader>
                   <CardTitle>My Health Records</CardTitle>
-                  <CardDescription>Select a healthcare facility to view your medical records</CardDescription>
+                  <CardDescription>Select a healthcare facility visit to view details</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {ehrRecords.map((ehr) => (
                       <Card
-                        key={ehr.id}
+                        key={ehr.ehr_id}
                         className={`cursor-pointer transition-all ${
-                          selectedEHR?.id === ehr.id ? "ring-2 ring-[#3FB6F6] bg-blue-50" : "hover:shadow-md"
+                          selectedEHR?.ehr_id === ehr.ehr_id ? "ring-2 ring-[#3FB6F6] bg-blue-50" : "hover:shadow-md"
                         }`}
                         onClick={() => handleEHRSelect(ehr)}
                       >
@@ -639,19 +490,17 @@ export function PatientMedicalRecordsSystem() {
                           <div className="space-y-2">
                             <div className="flex justify-between items-start">
                               <div>
-                                <h3 className="font-semibold">{ehr.facilityName}</h3>
-                                <p className="text-sm text-gray-600">{ehr.primaryDoctor}</p>
+                                <h3 className="font-semibold">{ehr.healthcare_facilities?.name || 'Unknown Facility'}</h3>
+                                <p className="text-sm text-gray-600">{ehr.doctors?.full_name || 'N/A'}</p>
                               </div>
-                              <Badge className={getStatusColor(ehr.status)}>{ehr.status}</Badge>
                             </div>
                             <div className="text-sm text-gray-600">
-                              <p>Created: {ehr.createdDate}</p>
-                              <p>Last Updated: {ehr.lastUpdated}</p>
+                              <p>Visit Date: {new Date(ehr.created_at).toLocaleDateString()}</p>
                             </div>
-                            <div className="flex justify-between text-xs text-gray-500">
-                              <span>{ehr.diagnoses.length} Diagnoses</span>
-                              <span>{ehr.prescriptions.length} Prescriptions</span>
-                              <span>{ehr.labResults.length} Lab Results</span>
+                            <div className="flex justify-between text-xs text-gray-500 pt-2 border-t">
+                              <span>{ehr.diagnosis.length} Diagnoses</span>
+                              <span>{ehr.prescriptions.length} Meds</span>
+                              <span>{ehr.examinations.length} Exams</span>
                             </div>
                           </div>
                         </CardContent>
@@ -665,382 +514,257 @@ export function PatientMedicalRecordsSystem() {
               {selectedEHR && (
                 <Card>
                   <CardHeader>
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          <Building2 className="h-5 w-5" />
-                          {selectedEHR.facilityName}
-                        </CardTitle>
-                        <CardDescription>
-                          Primary Doctor: {selectedEHR.primaryDoctor} | Status:{" "}
-                          <Badge className={`ml-2 ${getStatusColor(selectedEHR.status)}`}>{selectedEHR.status}</Badge>
-                        </CardDescription>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={handleDownloadRecord}>
-                          <Download className="h-4 w-4 mr-2" />
-                          Download
-                        </Button>
-                      </div>
-                    </div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Building2 className="h-5 w-5" />
+                        Visit Details for {selectedEHR.healthcare_facilities?.name}
+                      </CardTitle>
+                      <CardDescription>
+                        Visit Date: {new Date(selectedEHR.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric'})}
+                      </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
-                      <TabsList className="grid w-full grid-cols-2 md:grid-cols-6">
+                      <TabsList className="grid w-full grid-cols-3 md:grid-cols-6">
                         <TabsTrigger value="overview">Overview</TabsTrigger>
                         <TabsTrigger value="diagnoses">Diagnoses</TabsTrigger>
                         <TabsTrigger value="prescriptions">Medications</TabsTrigger>
-                        <TabsTrigger value="lab-results">Lab Results</TabsTrigger>
-                        <TabsTrigger value="notes">Visit Notes</TabsTrigger>
+                        <TabsTrigger value="examinations">Examinations</TabsTrigger>
+                        <TabsTrigger value="physical-examinations">Physical Exam</TabsTrigger>
                         <TabsTrigger value="vaccinations">Vaccinations</TabsTrigger>
                       </TabsList>
-
-                      <TabsContent value="overview" className="space-y-4 pt-4">
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                          <Card>
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-sm font-medium text-gray-500">Total Diagnoses</p>
-                                  <p className="text-2xl font-bold">{selectedEHR.diagnoses.length}</p>
-                                </div>
-                                <FileText className="h-8 w-8 text-[#3FB6F6]" />
-                              </div>
-                            </CardContent>
-                          </Card>
-                          <Card>
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-sm font-medium text-gray-500">Active Medications</p>
-                                  <p className="text-2xl font-bold">
-                                    {selectedEHR.prescriptions.filter((p) => p.status === "active").length}
-                                  </p>
-                                </div>
-                                <Pill className="h-8 w-8 text-[#34D399]" />
-                              </div>
-                            </CardContent>
-                          </Card>
-                          <Card>
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-sm font-medium text-gray-500">Lab Results</p>
-                                  <p className="text-2xl font-bold">{selectedEHR.labResults.length}</p>
-                                </div>
-                                <Microscope className="h-8 w-8 text-[#F59E0B]" />
-                              </div>
-                            </CardContent>
-                          </Card>
-                          <Card>
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-sm font-medium text-gray-500">Vaccinations</p>
-                                  <p className="text-2xl font-bold">{selectedEHR.vaccinations.length}</p>
-                                </div>
-                                <Syringe className="h-8 w-8 text-[#8B5CF6]" />
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-lg">Recent Diagnoses</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-3">
-                                {selectedEHR.diagnoses.slice(0, 3).map((diagnosis) => (
-                                  <div key={diagnosis.id} className="border-l-2 border-[#3FB6F6] pl-3">
-                                    <p className="font-medium">{diagnosis.diagnosis}</p>
-                                    <p className="text-sm text-gray-600">{diagnosis.doctor}</p>
-                                    <p className="text-xs text-gray-500">{diagnosis.date}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            </CardContent>
-                          </Card>
-
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-lg">Current Medications</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-3">
-                                {selectedEHR.prescriptions
-                                  .filter((p) => p.status === "active")
-                                  .slice(0, 3)
-                                  .map((prescription) => (
-                                    <div key={prescription.id} className="border-l-2 border-[#34D399] pl-3">
-                                      <p className="font-medium">{prescription.medication}</p>
-                                      <p className="text-sm text-gray-600">{prescription.dosage}</p>
-                                      <p className="text-xs text-gray-500">{prescription.instructions}</p>
-                                    </div>
-                                  ))}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      </TabsContent>
-
-                      <TabsContent value="diagnoses" className="space-y-4 pt-4">
-                        <div className="space-y-4">
-                          {selectedEHR.diagnoses.map((diagnosis) => (
-                            <Card key={diagnosis.id}>
-                              <CardContent className="p-4">
-                                <div className="space-y-3">
-                                  <div className="flex justify-between items-start">
-                                    <div>
-                                      <h4 className="font-semibold text-lg">{diagnosis.diagnosis}</h4>
-                                      <p className="text-sm text-gray-600">{diagnosis.doctor}</p>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-sm font-medium">{diagnosis.date}</p>
-                                      <p className="text-xs text-gray-500">{diagnosis.time}</p>
-                                    </div>
-                                  </div>
-                                  {diagnosis.icd10Code && <Badge variant="outline">{diagnosis.icd10Code}</Badge>}
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-700 mb-1">Treatment:</p>
-                                    <p className="text-sm text-gray-600">{diagnosis.treatment}</p>
-                                  </div>
-                                  {diagnosis.notes && (
-                                    <div>
-                                      <p className="text-sm font-medium text-gray-700 mb-1">Notes:</p>
-                                      <p className="text-sm text-gray-600">{diagnosis.notes}</p>
-                                    </div>
-                                  )}
-                                  {diagnosis.followUpRequired && (
-                                    <Alert className="border-yellow-200 bg-yellow-50">
-                                      <Clock className="h-4 w-4" />
-                                      <AlertDescription>Follow-up appointment required</AlertDescription>
-                                    </Alert>
-                                  )}
+                      
+                      {/* --- TABS CONTENT --- */}
+                       <TabsContent value="overview" className="space-y-4 pt-4">
+                          {/* Summary Cards */}
+                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                            <Card>
+                              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Diagnoses</CardTitle>
+                                <FileText className="h-4 w-4 text-muted-foreground" />
+                              </CardHeader>
+                              <CardContent>
+                                <div className="text-2xl font-bold">
+                                  {selectedEHR.diagnosis.length}
                                 </div>
                               </CardContent>
                             </Card>
-                          ))}
-                        </div>
+                            <Card>
+                              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Medications</CardTitle>
+                                <Pill className="h-4 w-4 text-muted-foreground" />
+                              </CardHeader>
+                              <CardContent>
+                                <div className="text-2xl font-bold">
+                                  {selectedEHR.prescriptions.length}
+                                </div>
+                              </CardContent>
+                            </Card>
+                             <Card>
+                              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Examinations</CardTitle>
+                                <Microscope className="h-4 w-4 text-muted-foreground" />
+                              </CardHeader>
+                              <CardContent>
+                                <div className="text-2xl font-bold">
+                                  {selectedEHR.examinations.length}
+                                </div>
+                              </CardContent>
+                            </Card>
+                            <Card>
+                              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Physical Exam</CardTitle>
+                                <HeartPulse className="h-4 w-4 text-muted-foreground" />
+                              </CardHeader>
+                              <CardContent>
+                                <div className="text-2xl font-bold">
+                                  {selectedEHR.physical_examinations.length > 0 ? "Done" : "None"}
+                                </div>
+                              </CardContent>
+                            </Card>
+                            <Card>
+                              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Vaccinations</CardTitle>
+                                <Syringe className="h-4 w-4 text-muted-foreground" />
+                              </CardHeader>
+                              <CardContent>
+                                <div className="text-2xl font-bold">
+                                  {selectedEHR.vaccinations.length}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  vaccinations this visit
+                                </p>
+                              </CardContent>
+                            </Card>
+                          </div>
+                          {/* Doctor's Notes and Diagnoses Summary */}
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <Card>
+                              <CardHeader>
+                                <CardTitle>Doctor's Visit Note</CardTitle>
+                                <CardDescription>
+                                  Note from {selectedEHR.doctor_notes[0]?.doctors.full_name || 'the attending doctor'}.
+                                </CardDescription>
+                              </CardHeader>
+                              <CardContent>
+                                <p className="text-sm text-muted-foreground">
+                                  {selectedEHR.doctor_notes[0]?.note || "No general visit note was recorded for this encounter."}
+                                </p>
+                              </CardContent>
+                            </Card>
+                            <Card>
+                              <CardHeader>
+                                <CardTitle>Diagnoses This Visit</CardTitle>
+                                <CardDescription>
+                                  A summary of diagnoses from this visit.
+                                </CardDescription>
+                              </CardHeader>
+                              <CardContent className="grid gap-4">
+                                {selectedEHR.diagnosis.length > 0 ? (
+                                  selectedEHR.diagnosis.slice(0, 3).map((diag: any) => (
+                                    <div key={diag.diagnosis_id} className="flex items-center space-x-4 rounded-md border p-4">
+                                      <FileText className="h-6 w-6" />
+                                      <div className="flex-1 space-y-1">
+                                        <p className="text-sm font-medium leading-none">
+                                          {diag.diagnosis_description}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                          By {diag.doctors.full_name}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">No diagnoses were recorded.</p>
+                                )}
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </TabsContent>
+                      
+                      <TabsContent value="diagnoses" className="space-y-4 pt-4">
+                        {selectedEHR.diagnosis.map((item: any) => (
+                          <Card key={item.diagnosis_id}>
+                            <CardContent className="p-4">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <h4 className="font-semibold text-lg">{item.diagnosis_description}</h4>
+                                  <p className="text-sm text-gray-600">{item.doctors.full_name}</p>
+                                </div>
+                                <p className="text-sm font-medium">{new Date(item.created_at).toLocaleDateString()}</p>
+                              </div>
+                              <div className="mt-2 text-sm text-gray-600">
+                                <p><strong className="font-medium text-gray-700">Treatment:</strong> {item.treatment_plan}</p>
+                                <p><strong className="font-medium text-gray-700">Symptoms:</strong> {item.symptoms}</p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </TabsContent>
 
                       <TabsContent value="prescriptions" className="space-y-4 pt-4">
-                        <div className="space-y-4">
-                          {selectedEHR.prescriptions.map((prescription) => (
-                            <Card key={prescription.id}>
-                              <CardContent className="p-4">
-                                <div className="space-y-3">
-                                  <div className="flex justify-between items-start">
-                                    <div>
-                                      <h4 className="font-semibold text-lg">{prescription.medication}</h4>
-                                      <p className="text-sm text-gray-600">{prescription.doctor}</p>
+                        {selectedEHR.prescriptions.map((item: any) => (
+                            <Card key={item.prescription_id}>
+                                <CardContent className="p-4 grid gap-2">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h4 className="font-semibold text-lg">{item.medication_name}</h4>
+                                            <p className="text-sm text-gray-600">{item.doctors.full_name}</p>
+                                        </div>
+                                        <p className="text-sm font-medium">{new Date(item.created_at).toLocaleDateString()}</p>
                                     </div>
-                                    <div className="text-right">
-                                      <p className="text-sm font-medium">{prescription.date}</p>
-                                      <Badge className={getStatusColor(prescription.status)}>
-                                        {prescription.status}
-                                      </Badge>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                                        <div><strong className="block font-medium">Dosage:</strong> {item.dosage}</div>
+                                        <div><strong className="block font-medium">Duration:</strong> {item.duration}</div>
+                                        <div className="col-span-2 md:col-span-1"><strong className="block font-medium">Instruction:</strong> {item.instruction}</div>
                                     </div>
-                                  </div>
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                    <div>
-                                      <p className="font-medium text-gray-700">Dosage:</p>
-                                      <p className="text-gray-600">{prescription.dosage}</p>
-                                    </div>
-                                    <div>
-                                      <p className="font-medium text-gray-700">Duration:</p>
-                                      <p className="text-gray-600">{prescription.duration}</p>
-                                    </div>
-                                    <div>
-                                      <p className="font-medium text-gray-700">Instructions:</p>
-                                      <p className="text-gray-600">{prescription.instructions}</p>
-                                    </div>
-                                  </div>
-                                </div>
-                              </CardContent>
+                                </CardContent>
                             </Card>
-                          ))}
-                        </div>
+                        ))}
                       </TabsContent>
 
-                      <TabsContent value="lab-results" className="space-y-4 pt-4">
-                        <div className="space-y-4">
-                          {selectedEHR.labResults.map((result) => (
-                            <Card key={result.id}>
-                              <CardContent className="p-4">
-                                <div className="space-y-3">
-                                  <div className="flex justify-between items-start">
-                                    <div>
-                                      <h4 className="font-semibold text-lg">{result.testName}</h4>
-                                      <p className="text-sm text-gray-600">{result.doctor}</p>
+                      <TabsContent value="examinations" className="space-y-4 pt-4">
+                        {selectedEHR.examinations.map((item: any) => (
+                            <Card key={item.examination_id}>
+                                <CardContent className="p-4 grid gap-2">
+                                     <div className="flex justify-between items-start">
+                                        <div>
+                                            <h4 className="font-semibold text-lg">{item.examination_name}</h4>
+                                            <p className="text-sm text-gray-600">{item.doctors.full_name}</p>
+                                        </div>
+                                        <p className="text-sm font-medium">{new Date(item.created_at).toLocaleDateString()}</p>
                                     </div>
-                                    <div className="text-right">
-                                      <p className="text-sm font-medium">{result.date}</p>
-                                      <Badge className={getStatusColor(result.status)}>{result.status}</Badge>
-                                    </div>
-                                  </div>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                      <p className="text-sm font-medium text-gray-700">Result:</p>
-                                      <p className="text-lg font-semibold">{result.result}</p>
-                                    </div>
-                                    {result.normalRange && (
-                                      <div>
-                                        <p className="text-sm font-medium text-gray-700">Normal Range:</p>
-                                        <p className="text-sm text-gray-600">{result.normalRange}</p>
-                                      </div>
-                                    )}
-                                  </div>
-                                  {result.notes && (
-                                    <div>
-                                      <p className="text-sm font-medium text-gray-700 mb-1">Notes:</p>
-                                      <p className="text-sm text-gray-600">{result.notes}</p>
-                                    </div>
-                                  )}
-                                  <div className="text-xs text-gray-500">
-                                    <p>
-                                      {result.facility} | {result.date} at {result.time}
-                                    </p>
-                                  </div>
-                                </div>
-                              </CardContent>
+                                    <p><strong className="font-medium">Type:</strong> {item.examination_type}</p>
+                                    <p><strong className="font-medium">Note:</strong> {item.note || 'N/A'}</p>
+                                    {item.result_file && <Button variant="outline" size="sm" asChild><Link href={item.result_file} target="_blank">View File</Link></Button>}
+                                </CardContent>
                             </Card>
-                          ))}
-                        </div>
+                        ))}
                       </TabsContent>
-
-                      <TabsContent value="notes" className="space-y-4 pt-4">
-                        <div className="space-y-4">
-                          {selectedEHR.medicalNotes.map((note) => (
-                            <Card key={note.id}>
-                              <CardContent className="p-4">
-                                <div className="space-y-3">
-                                  <div className="flex justify-between items-start">
-                                    <div>
-                                      <Badge variant="outline">{note.category}</Badge>
-                                      <p className="font-medium mt-2">{note.doctor}</p>
-                                    </div>
-                                    <p className="text-sm text-gray-500">
-                                      {note.date} at {note.time}
-                                    </p>
-                                  </div>
-                                  <p className="text-gray-700">{note.note}</p>
-                                  <p className="text-xs text-gray-500">{note.facility}</p>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
+                      
+                      <TabsContent value="physical-examinations" className="space-y-4 pt-4">
+                        {selectedEHR.physical_examinations.map((item: any) => (
+                          <Card key={item.physical_examination_id}>
+                            <CardHeader>
+                                <CardTitle className="text-lg">Physical Examination</CardTitle>
+                                <CardDescription>{new Date(item.created_at).toLocaleString()}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 text-sm">
+                                <div><strong className="block font-medium">Heart Rate:</strong> {item.heart_rate} bpm</div>
+                                <div><strong className="block font-medium">Blood Pressure:</strong> {item.blood_pressure} mmHg</div>
+                                <div><strong className="block font-medium">Temperature:</strong> {item.temperature} °C</div>
+                                <div><strong className="block font-medium">Respiratory Rate:</strong> {item.respiratory_rate} bpm</div>
+                                <div><strong className="block font-medium">Oxygen Saturation:</strong> {item.oxygen_saturation} %</div>
+                                <div className="col-span-full"><strong className="block font-medium">General Observations:</strong> {item.general_observations}</div>
+                                <div className="col-span-full"><strong className="block font-medium">Findings:</strong> {item.findings}</div>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </TabsContent>
 
                       <TabsContent value="vaccinations" className="space-y-4 pt-4">
-                        <div className="space-y-4">
-                          {selectedEHR.vaccinations.map((vaccination) => (
-                            <Card key={vaccination.id}>
-                              <CardContent className="p-4">
-                                <div className="space-y-3">
-                                  <div className="flex justify-between items-start">
-                                    <div>
-                                      <h4 className="font-semibold text-lg">{vaccination.vaccineName}</h4>
-                                      <p className="text-sm text-gray-600">{vaccination.vaccineType}</p>
+                        {selectedEHR.vaccinations.map((item: any) => (
+                            <Card key={item.vaccination_id}>
+                                <CardContent className="p-4 grid gap-2">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h4 className="font-semibold text-lg">{item.vaccine_name}</h4>
+                                            <p className="text-sm text-gray-600">{item.vaccine_type}</p>
+                                        </div>
+                                        <p className="text-sm font-medium">{new Date(item.date_given).toLocaleDateString()}</p>
                                     </div>
-                                    <div className="text-right">
-                                      <p className="text-sm font-medium">{vaccination.date}</p>
-                                      <p className="text-xs text-gray-500">{vaccination.time}</p>
-                                    </div>
-                                  </div>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                      <p className="font-medium text-gray-700">Dose:</p>
-                                      <p className="text-gray-600">{vaccination.dose}</p>
-                                    </div>
-                                    <div>
-                                      <p className="font-medium text-gray-700">Location:</p>
-                                      <p className="text-gray-600">{vaccination.location}</p>
-                                    </div>
-                                    <div>
-                                      <p className="font-medium text-gray-700">Administrator:</p>
-                                      <p className="text-gray-600">{vaccination.administrator}</p>
-                                    </div>
-                                    {vaccination.nextDueDate && (
-                                      <div>
-                                        <p className="font-medium text-gray-700">Next Due:</p>
-                                        <Badge className="bg-yellow-100 text-yellow-800">
-                                          {vaccination.nextDueDate}
-                                        </Badge>
-                                      </div>
-                                    )}
-                                  </div>
-                                  {vaccination.batchNumber && (
-                                    <p className="text-xs text-gray-500">Batch: {vaccination.batchNumber}</p>
-                                  )}
-                                </div>
-                              </CardContent>
+                                    <div><strong className="font-medium">Dose:</strong> {item.dose_number}</div>
+                                    {item.next_dose_date && <div><strong className="font-medium">Next Dose:</strong> {new Date(item.next_dose_date).toLocaleDateString()}</div>}
+                                </CardContent>
                             </Card>
-                          ))}
-                        </div>
+                        ))}
                       </TabsContent>
+
                     </Tabs>
                   </CardContent>
                 </Card>
               )}
-
-              {/* Request Records Dialog */}
-              <Dialog open={showRequestDialog} onOpenChange={setShowRequestDialog}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Request Medical Records</DialogTitle>
-                    <DialogDescription>
-                      Request copies of your medical records from healthcare providers
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-gray-600">
-                        You can request copies of your medical records for personal use, sharing with other healthcare
-                        providers, or for insurance purposes.
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">What records would you like?</p>
-                      <div className="space-y-2">
-                        <label className="flex items-center space-x-2">
-                          <input type="checkbox" defaultChecked />
-                          <span className="text-sm">Complete medical history</span>
-                        </label>
-                        <label className="flex items-center space-x-2">
-                          <input type="checkbox" defaultChecked />
-                          <span className="text-sm">Lab results</span>
-                        </label>
-                        <label className="flex items-center space-x-2">
-                          <input type="checkbox" />
-                          <span className="text-sm">Imaging studies</span>
-                        </label>
-                        <label className="flex items-center space-x-2">
-                          <input type="checkbox" />
-                          <span className="text-sm">Vaccination records</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setShowRequestDialog(false)}>
-                      Cancel
-                    </Button>
-                    <Button className="bg-gradient-to-r from-[#3FB6F6] to-[#34D399]" onClick={handleRequestRecords}>
-                      Submit Request
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
             </div>
           </main>
-
-          {/* Footer */}
+          
           <Footer />
         </SidebarInset>
       </SidebarProvider>
+      
+      {/* Download Confirmation Dialog */}
+      <Dialog open={showDownloadDialog} onOpenChange={setShowDownloadDialog}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Confirm Download</DialogTitle>
+                <DialogDescription>
+                    This will generate a PDF of the selected health record from {selectedEHR?.healthcare_facilities?.name || "the selected facility"}. Do you want to continue?
+                </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setShowDownloadDialog(false)}>Cancel</Button>
+                <Button onClick={handleConfirmDownload}>Confirm & Download</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

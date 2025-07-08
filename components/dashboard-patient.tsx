@@ -52,7 +52,7 @@ interface DashboardData {
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home, isActive: true },
   { title: "Appointments", url: "/appointments", icon: Calendar },
-  { title: "Medical Records", url: "/medical-records", icon: FileText },
+  { title: "Medical Records", url: "/patients-medical-records", icon: FileText },
   { title: "Ask AI", url: "/ask-ai", icon: MessageCircle },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
@@ -308,19 +308,17 @@ export function DashboardPatient() {
                           </div>
                           <Badge className={getStatusColor(dashboardData.status)}>{dashboardData.status}</Badge>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-gray-500">Service</p>
-                            <p>{dashboardData.service}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-gray-500">Date & Time</p>
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3 text-gray-400" />
-                              <p>
-                                {dashboardData.queueDate}, {dashboardData.queueTime}
-                              </p>
-                            </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-gray-500">Service</p>
+                          <p>{dashboardData.service}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-gray-500">Date & Time</p>
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3 text-gray-400" />
+                            <p>
+                              {dashboardData.queueDate}, {dashboardData.queueTime}
+                            </p>
                           </div>
                         </div>
                       </div>

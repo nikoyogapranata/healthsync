@@ -55,7 +55,7 @@ import { cn } from "@/lib/utils"
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Appointments", url: "/appointments", icon: LucideCalendar, isActive: true },
-  { title: "Medical Records", url: "/medical-records", icon: FileText },
+  { title: "Medical Records", url: "/patients-medical-records", icon: FileText },
   { title: "Ask AI", url: "/ask-ai", icon: MessageCircle },
   { title: "Settings", url: "/settings", icon: Settings },
 ]
