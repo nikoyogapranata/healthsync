@@ -1,0 +1,510 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import {
+  Sidebar,
+  SidebarProvider,
+  SidebarContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarInset,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarRail,
+} from "@/components/ui/sidebar";
+import { Header } from "@/components/ui/header";
+import { Footer } from "@/components/ui/footer";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/components/ui/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Clock,
+  BriefcaseMedical,
+  CheckCircle,
+  Shield,
+  MoreHorizontal,
+  LayoutDashboard,
+  UserCircle,
+  Stethoscope,
+} from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
+import { Label } from "@/components/ui/label";
+
+const navigationItems = [
+  { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
+  { title: "Queue Management", url: "/admin/queue", icon: Clock },
+  { title: "Doctor Management", url: "/admin/doctors", icon: BriefcaseMedical },
+];
+
+interface Queue {
+  queue_id: string;
+  queue_number: string;
+  patients: { full_name: string } | null;
+  doctors: { full_name: string } | null;
+  department: string;
+  queue_status: "Waiting" | "In Progress" | "Completed" | "Cancelled";
+  payment_status: "Not Paid" | "Paid" | "Waived";
+  created_at: string;
+  visit_type?: string;
+  triage_priority?: string;
+  called_at?: string | null;
+  completed_at?: string | null;
+}
+
+export function AdminQueueManagement() {
+  const [queues, setQueues] = useState<Queue[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedQueue, setSelectedQueue] = useState<Queue | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const pathname = usePathname();
+  const supabase = createClient();
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("queue")
+        .select(`
+          queue_id, queue_number, department, queue_status, payment_status,
+          visit_type, triage_priority, created_at, called_at, completed_at,
+          patients ( full_name ),
+          doctors ( full_name )
+        `)
+
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Could not fetch queue data.",
+          variant: "destructive",
+        });
+      } else {
+        setQueues(data as any);
+      }
+      setLoading(false);
+    };
+
+    fetchInitialData();
+
+    const channel = supabase
+      .channel("queue-realtime-channel")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "queue" },
+        (payload) => {
+          const updatedRecord = payload.new as Queue;
+          setQueues((currentQueues) =>
+            currentQueues.map((q) =>
+              q.queue_id === updatedRecord.queue_id
+                ? { ...q, ...updatedRecord }
+                : q
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
+
+    const handleUpdateStatus = async (
+      queue_id: string,
+      updates: Partial<Queue>
+    ) => {
+      // Determine timestamp logic
+      const timestampUpdates: Partial<Queue> = {};
+
+      if (updates.queue_status === "In Progress") {
+        timestampUpdates.called_at = new Date().toISOString();
+      }
+
+      if (updates.queue_status === "Completed") {
+        timestampUpdates.completed_at = new Date().toISOString();
+      }
+
+      const finalUpdates = {
+        ...updates,
+        ...timestampUpdates,
+      };
+
+      const { error } = await supabase
+        .from("queue")
+        .update(finalUpdates)
+        .eq("queue_id", queue_id);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update status.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Success", description: "Status has been updated." });
+
+        // Update selected queue in modal
+        if (selectedQueue?.queue_id === queue_id) {
+          setSelectedQueue((prev) =>
+            prev ? { ...prev, ...finalUpdates } : null
+          );
+        }
+
+        // Update queues in table
+        setQueues((prev) =>
+          prev.map((q) =>
+            q.queue_id === queue_id ? { ...q, ...finalUpdates } : q
+          )
+        );
+      }
+    };
+
+  const openQueueModal = (queue: Queue) => {
+    setSelectedQueue(queue);
+    setIsModalOpen(true);
+  };
+
+  const getStatusColor = (status: string, type: "queue" | "payment") => {
+    if (type === "queue") {
+      switch (status) {
+        case "Waiting":
+          return "bg-yellow-100 text-yellow-800";
+        case "In Progress":
+          return "bg-blue-100 text-blue-800";
+        case "Completed":
+          return "bg-green-100 text-green-800";
+        case "Cancelled":
+          return "bg-red-100 text-red-800";
+        default:
+          return "bg-gray-100 text-gray-800";
+      }
+    }
+    if (type === "payment") {
+      switch (status) {
+        case "Paid":
+          return "bg-green-100 text-green-800";
+        case "Not Paid":
+          return "bg-red-100 text-red-800";
+        case "Waived":
+          return "bg-orange-100 text-orange-800";
+        default:
+          return "bg-gray-100 text-gray-800";
+      }
+    }
+    return "bg-gray-100 text-gray-800";
+  };
+
+  return (
+    <SidebarProvider>
+      <Sidebar collapsible="icon" className="border-r-0">
+        <SidebarHeader className="border-b border-border/40 pb-4">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                size="lg"
+                asChild
+                className="hover:bg-transparent"
+              >
+                <Link
+                  href="/admin/dashboard"
+                  className="flex items-center gap-3 px-2 group-data-[collapsible=icon]:justify-center"
+                >
+                  <div className="flex aspect-square size-10 items-center justify-center rounded-xl pl-2 pt-2">
+                    <Image
+                      src="/illustrations/logo.png"
+                      alt="HealthSync Logo"
+                      width={28}
+                      height={28}
+                      onError={(e) => {
+                        e.currentTarget.src =
+                          "https://placehold.co/28x28/34D399/FFFFFF?text=HS";
+                      }}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
+                    <span className="font-bold text-lg text-foreground">
+                      HealthSync
+                    </span>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      Admin Panel
+                    </span>
+                  </div>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarContent className="px-2 py-4">
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground/80 uppercase tracking-wider mb-2 px-2">
+              Navigation
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-1">
+                {navigationItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === item.url}
+                      tooltip={item.title}
+                      className={cn(
+                        "h-11 px-3 rounded-lg font-medium transition-all duration-200",
+                        "hover:bg-accent/50 hover:text-accent-foreground",
+                        "data-[active=true]:bg-gradient-to-r data-[active=true]:from-[#3FB6F6]/10 data-[active=true]:to-[#34D399]/10",
+                        "data-[active=true]:border data-[active=true]:border-[#3FB6F6]/20",
+                        "data-[active=true]:text-[#3FB6F6] data-[active=true]:font-semibold",
+                        "data-[active=true]:shadow-sm"
+                      )}
+                    >
+                      <Link href={item.url} className="flex items-center gap-3">
+                        <item.icon className="size-5" />
+                        <span className="text-sm group-data-[collapsible=icon]:hidden">
+                          {item.title}
+                        </span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarRail />
+      </Sidebar>
+      <SidebarInset className="flex flex-col min-h-screen">
+        <Header pageTitle="Queue Management" />
+        <main className="flex-1 p-4 md:p-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Today's Queue</CardTitle>
+              <CardDescription>
+                Click on a row to view details and manage status.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Queue #</TableHead>
+                    <TableHead>Patient</TableHead>
+                    <TableHead>Doctor</TableHead>
+                    <TableHead>Queue Status</TableHead>
+                    <TableHead>Payment Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center">
+                        Loading queue data...
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    queues.map((q) => (
+                      <TableRow
+                        key={q.queue_id}
+                        onClick={() => openQueueModal(q)}
+                        className="cursor-pointer hover:bg-gray-50"
+                      >
+                        <TableCell className="font-medium">
+                          {q.queue_number}
+                        </TableCell>
+                        <TableCell>{q.patients?.full_name ?? "—"}</TableCell>
+                        <TableCell>{q.doctors?.full_name ?? "—"}</TableCell>
+                        <TableCell>
+                          <Badge
+                            className={getStatusColor(q.queue_status, "queue")}
+                          >
+                            {q.queue_status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            className={getStatusColor(
+                              q.payment_status,
+                              "payment"
+                            )}
+                          >
+                            {q.payment_status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </main>
+        <Footer />
+      </SidebarInset>
+
+      {/* Queue Details Modal */}
+      <Dialog open={isModalOpen} onOpenChange={(open) => {
+        setIsModalOpen(open)
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Queue Details</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              View and manage this queue item’s statuses.
+            </DialogDescription>
+          </DialogHeader>
+
+{selectedQueue && (
+  <div className="space-y-6 pt-2">
+    {/* Info Card */}
+    <div className="rounded-2xl border bg-slate-50 p-4 shadow-sm space-y-3">
+      <div className="flex justify-between items-start">
+        <div>
+          <p className="text-sm text-muted-foreground">Queue Number</p>
+          <h2 className="text-2xl font-bold text-blue-600">{selectedQueue.queue_number}</h2>
+        </div>
+        <div className="flex flex-col gap-2 items-end">
+          <Badge className={getStatusColor(selectedQueue.queue_status, "queue")}>
+            {selectedQueue.queue_status}
+          </Badge>
+          <Badge className={getStatusColor(selectedQueue.payment_status, "payment")}>
+            {selectedQueue.payment_status}
+          </Badge>
+        </div>
+      </div>
+
+      <div className="grid gap-2 text-sm text-gray-700">
+        <div className="flex items-center gap-2">
+          <UserCircle className="size-4" />
+          <strong>Patient:</strong> {selectedQueue.patients?.full_name ?? "N/A"}
+        </div>
+        <div className="flex items-center gap-2">
+          <Stethoscope className="size-4" />
+          <strong>Doctor:</strong> {selectedQueue.doctors?.full_name ?? "N/A"}
+        </div>
+        <div className="flex items-center gap-2">
+          <BriefcaseMedical className="size-4" />
+          <strong>Department:</strong> {selectedQueue.department}
+        </div>
+        <div className="flex items-center gap-2">
+          <strong>Visit Type:</strong> {selectedQueue.visit_type ?? "—"}
+        </div>
+        {/*
+        <div className="flex items-center gap-2">
+          <strong>Priority:</strong> {selectedQueue.triage_priority ?? "—"}
+        </div>
+        */}
+        <div className="flex items-center gap-2">
+          <strong>Created At:</strong> {new Date(selectedQueue.created_at).toLocaleString()}
+        </div>
+        <div className="flex items-center gap-2">
+          <strong>Called At:</strong> {selectedQueue.called_at ? new Date(selectedQueue.called_at).toLocaleString() : "—"}
+        </div>
+        <div className="flex items-center gap-2">
+          <strong>Completed At:</strong> {selectedQueue.completed_at ? new Date(selectedQueue.completed_at).toLocaleString() : "—"}
+        </div>
+      </div>
+    </div>
+
+              {/* Queue Status Controls */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground">Queue Status</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleUpdateStatus(selectedQueue.queue_id, { queue_status: "Waiting" })}
+                  >
+                    Waiting
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleUpdateStatus(selectedQueue.queue_id, { queue_status: "In Progress" })}
+                  >
+                    In Progress
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleUpdateStatus(selectedQueue.queue_id, { queue_status: "Completed" })}
+                  >
+                    Completed
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleUpdateStatus(selectedQueue.queue_id, { queue_status: "Cancelled" })}
+                  >
+                    Cancelled
+                  </Button>                </div>
+              </div>
+
+              {/* Payment Status Controls */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground">Payment Status</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleUpdateStatus(selectedQueue.queue_id, { payment_status: "Not Paid" })}
+                  >
+                    Not Paid
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleUpdateStatus(selectedQueue.queue_id, { payment_status: "Paid" })}
+                  >
+                    Paid
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleUpdateStatus(selectedQueue.queue_id, { payment_status: "Waived" })}
+                  >
+                    Waived
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </SidebarProvider>
+  );
+}
