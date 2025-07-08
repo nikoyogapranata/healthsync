@@ -2,6 +2,7 @@ type ToastProps = {
   title: string
   description: string
   duration?: number
+  variant?: "default" | "destructive" // Add variant property
 }
 
 export function toast(props: ToastProps) {
