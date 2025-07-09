@@ -49,7 +49,7 @@ export function DashboardAdmin() {
       const { count: queueCount } = await supabase
       .from("queue")
       .select("*", { count: "exact", head: true })
-      .eq("queue_status", "waiting");
+      .eq("queue_status", "Waiting");
 
     const { count: unpaidCount } = await supabase
       .from("queue")

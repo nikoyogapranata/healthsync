@@ -67,9 +67,9 @@ import { createClient } from "@/utils/supabase/client";
 import { Label } from "@/components/ui/label";
 
 const navigationItems = [
-  { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
-  { title: "Queue Management", url: "/admin/queue", icon: Clock },
-  { title: "Doctor Management", url: "/admin/doctors", icon: BriefcaseMedical },
+  { title: "Dashboard", url: "/admin-dashboard", icon: LayoutDashboard },
+  { title: "Queue Management", url: "/admin-queue", icon: Clock },
+  { title: "Doctor Management", url: "/admin-doctor-management", icon: BriefcaseMedical },
 ];
 
 interface Queue {
