@@ -27,7 +27,7 @@ const supabase = createClient(
 const navigationItems = [
   { title: "Dashboard", url: "/admin-dashboard", icon: LayoutDashboard },
   { title: "Queue Management", url: "/admin-queue", icon: Clock },
-  { title: "Doctor Management", url: "/admin/doctors", icon: BriefcaseMedical },
+  { title: "Doctor Management", url: "/admin-doctor-management", icon: BriefcaseMedical },
 ];
 
 export function DashboardAdmin() {

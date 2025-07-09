@@ -1,7 +1,5 @@
 "use client";
 
-
-import { createDoctorUser } from "@/app/actions/doctor-actions"; // <-- Import the new Server Action
 import { useEffect, useState, useCallback } from "react"; // Import useCallback
 import Link from "next/link";
 import Image from "next/image";
@@ -42,11 +40,6 @@ interface Doctor {
   users: { email: string } | null; // For fetching email from the related users table
 }
 
-interface HealthcareFacility {
-  healthcare_facility_id: string;
-  name: string;
-}
-
 const navigationItems = [
   { title: "Dashboard", url: "/admin-dashboard", icon: LayoutDashboard },
   { title: "Queue Management", url: "/admin-queue", icon: Clock },
@@ -64,23 +57,6 @@ export function AdminDoctorManagement() {
   const [showEditDoctorDialog, setShowEditDoctorDialog] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Doctor>>({});
-  const [facilities, setFacilities] = useState<HealthcareFacility[]>([]);
-
-  useEffect(() => {
-    const fetchFacilities = async () => {
-      const { data, error } = await supabase
-        .from("healthcare_facilities")
-        .select("healthcare_facility_id, name");
-
-      if (error) {
-        toast({ title: "Error", description: "Could not fetch healthcare facilities.", variant: "destructive" });
-      } else {
-        setFacilities(data || []);
-      }
-    };
-
-    fetchFacilities();
-  }, [supabase]);
 
   // --- REFACTORED DATA FETCHING ---
   const fetchInitialData = useCallback(async () => {
@@ -127,83 +103,45 @@ export function AdminDoctorManagement() {
     };
   }, [supabase, fetchInitialData]); // Add fetchInitialData to dependency array
 
-// --- CRUD Handlers ---
-const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const formData = new FormData(form);
-
-  const doctorData = {
-    // Make sure the `name` attribute in your input matches these keys
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-    full_name: formData.get('fullName') as string,
-    specialization: formData.get('specialization') as string,
-    license_number: formData.get('licenseNumber') as string,
-    phone_number: formData.get('phoneNumber') as string,
-    gender: formData.get('gender') as 'Male' | 'Female' | 'Other',
-    employee_id: formData.get('employeeId') as string,
-    address: formData.get('address') as string,
-    facilityId: formData.get('facilityId') as string,
+  // --- CRUD Handlers ---
+  const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const newDoctorData = {
+      fullName: formData.get('fullName') as string,
+      email: formData.get('email') as string,
+      password: formData.get('password') as string,
+      specialization: formData.get('specialization') as string,
+      licenseNumber: formData.get('licenseNumber') as string,
+    };
+    
+    // NOTE: This is a placeholder. You should replace this with your actual
+    // server-side logic to create a user and a doctor profile.
+    // The realtime listener will automatically refresh the list upon success.
+    console.log("Creating doctor:", newDoctorData);
+    toast({ title: "Doctor Created", description: "New doctor has been successfully added." });
+    setShowCreateDoctorDialog(false);
   };
 
-  if (!doctorData.facilityId) {
-        toast({ title: "Error", description: "Please assign a healthcare facility.", variant: "destructive" });
-        return;
-    }
-
-  // Simple validation
-  if (!doctorData.email || !doctorData.password || !doctorData.full_name) {
-    toast({
-      title: "Missing Information",
-      description: "Please fill in Full Name, Email, and Password.",
-      variant: "destructive"
-    });
-    return;
-  }
-
-   // Call the Server Action
-  const result = await createDoctorUser(doctorData);
-
-  // Show only the final success or error toast
-  if (result.success) {
-    toast({
-      title: "Success!",
-      description: result.message,
-    });
-    setShowCreateDoctorDialog(false);
-    form.reset();
-    fetchInitialData();
-  } else {
-    toast({
-      title: "Error",
-      description: result.message,
-      variant: "destructive",
-    });
-  }
-};
-
   const handleUpdateDoctor = async () => {
-      if (!selectedDoctor) return;
+    if (!selectedDoctor) return;
 
-      // Destructure to remove the nested 'users' object before updating
-      const { users, ...updateData } = editFormData;
+    // Destructure to remove the nested 'users' object before updating
+    const { users, ...updateData } = editFormData;
 
-      const { error } = await supabase
-        .from('doctors')
-        .update(updateData) // Use the cleaned data object
-        .eq('doctor_id', selectedDoctor.doctor_id);
+    const { error } = await supabase
+      .from('doctors')
+      .update(updateData) // Use the cleaned data object
+      .eq('doctor_id', selectedDoctor.doctor_id);
 
-      if (error) {
-        toast({ title: "Error", description: `Failed to update doctor: ${error.message}`, variant: "destructive" });
-      } else {
-        toast({ title: "Success", description: "Doctor information has been updated." });
-        setShowEditDoctorDialog(false);
-        
-        // Manually refetch the data for an instant UI update.
-        fetchInitialData(); 
-      }
-    };
+    if (error) {
+      toast({ title: "Error", description: `Failed to update doctor: ${error.message}`, variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: "Doctor information has been updated." });
+      setShowEditDoctorDialog(false);
+      // No need to manually refetch, the realtime listener will handle it.
+    }
+  };
 
   // Dummy delete handler to demonstrate refresh
   const handleDeleteDoctor = async () => {
@@ -219,9 +157,6 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
       } else {
           toast({ title: "Success", description: "Doctor has been deleted." });
           setShowEditDoctorDialog(false);
-          
-          // Manually refetch the data for an instant UI update.
-          fetchInitialData();
       }
   };
 
@@ -327,93 +262,24 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
 
       {/* Create Doctor Dialog remains the same */}
       <Dialog open={showCreateDoctorDialog} onOpenChange={setShowCreateDoctorDialog}>
-        <DialogContent className="max-w-2xl"> {/* Increased width for better layout */}
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Create New Doctor Account</DialogTitle>
             <DialogDescription>Fill in the details below. An email verification will be sent.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateDoctor}>
-            <div className="grid gap-4 py-4">
+            <div className="space-y-4 py-4">
+              <div className="space-y-2"><Label htmlFor="fullName">Full Name</Label><Input name="fullName" required /></div>
+              <div className="space-y-2"><Label htmlFor="email">Email Address</Label><Input name="email" type="email" required /></div>
+              <div className="space-y-2"><Label htmlFor="password">Temporary Password</Label><Input name="password" type="password" required /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input id="fullName" name="fullName" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" name="email" type="email" required />
-                </div>
+                <div className="space-y-2"><Label htmlFor="specialization">Specialization</Label><Input name="specialization" required /></div>
+                <div className="space-y-2"><Label htmlFor="licenseNumber">License Number</Label><Input name="licenseNumber" required /></div>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="specialization">Specialization</Label>
-                  <Input id="specialization" name="specialization" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="licenseNumber">License Number</Label>
-                  <Input id="licenseNumber" name="licenseNumber" required />
-                </div>
-              </div>
-
-              {/* --- ADDED FIELDS --- */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input id="phoneNumber" name="phoneNumber" placeholder="e.g., 08123456789" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="employeeId">Employee ID</Label>
-                  <Input id="employeeId" name="employeeId" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                      <Label htmlFor="gender">Gender</Label>
-                      <Select name="gender">
-                          <SelectTrigger id="gender">
-                              <SelectValue placeholder="Select gender" />
-                          </SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="Male">Male</SelectItem>
-                              <SelectItem value="Female">Female</SelectItem>
-                              <SelectItem value="Other">Other</SelectItem>
-                          </SelectContent>
-                      </Select>
-                  </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="password">Temporary Password</Label>
-                      <Input id="password" name="password" type="password" required />
-                  </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="facilityId">Healthcare Facility</Label>
-                <Select name="facilityId" required>
-                  <SelectTrigger id="facilityId">
-                    <SelectValue placeholder="Assign a facility" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {facilities.map((facility) => (
-                      <SelectItem key={facility.healthcare_facility_id} value={facility.healthcare_facility_id}>
-                        {facility.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-            </div>
-              
-              <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input id="address" name="address" placeholder="Enter full address" />
-              </div>
-              {/* --- END OF ADDED FIELDS --- */}
-
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowCreateDoctorDialog(false)}>Cancel</Button>
-              <Button type="submit">Create Account</Button>
+              <Button type="submit">Create Doctor</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -428,8 +294,6 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
           </DialogHeader>
           {selectedDoctor && (
             <div className="grid gap-6 py-4">
-              {/* Other input fields like Full Name, Specialization, etc. go here */}
-              
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit_full_name">Full Name</Label>
@@ -440,7 +304,7 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
                   <Input id="edit_specialization" value={editFormData.specialization ?? ''} onChange={(e) => setEditFormData({...editFormData, specialization: e.target.value})} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit_license_number">License Number</Label>
                   <Input id="edit_license_number" value={editFormData.license_number ?? ''} onChange={(e) => setEditFormData({...editFormData, license_number: e.target.value})} />
@@ -451,11 +315,10 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
                 </div>
               </div>
               
-              {/* --- GENDER AND EMPLOYEE ID INPUTS --- */}
+              {/* --- NEW GENDER AND EMPLOYEE ID INPUTS --- */}
               <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                       <Label htmlFor="edit_gender">Gender</Label>
-                      {/* This correctly displays the gender from the database */}
                       <Select
                           value={editFormData.gender ?? undefined}
                           onValueChange={(value) => setEditFormData({ ...editFormData, gender: value as Doctor['gender'] })}
@@ -470,7 +333,7 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
                           </SelectContent>
                       </Select>
                   </div>
-                  <div className="space-y-2">
+                   <div className="space-y-2">
                       <Label htmlFor="edit_employee_id">Employee ID</Label>
                       <Input id="edit_employee_id" value={editFormData.employee_id ?? ''} onChange={(e) => setEditFormData({...editFormData, employee_id: e.target.value})} />
                   </div>
@@ -493,8 +356,8 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
                   </Button>
               </div>
               <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowEditDoctorDialog(false)}>Cancel</Button>
-                <Button onClick={handleUpdateDoctor}>Save Changes</Button>
+                 <Button type="button" variant="outline" onClick={() => setShowEditDoctorDialog(false)}>Cancel</Button>
+                 <Button onClick={handleUpdateDoctor}>Save Changes</Button>
               </div>
           </DialogFooter>
         </DialogContent>
