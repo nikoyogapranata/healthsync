@@ -1,8 +1,7 @@
 "use client";
 
-
-import { createDoctorUser } from "@/app/actions/doctor-actions"; // <-- Import the new Server Action
-import { useEffect, useState, useCallback } from "react"; // Import useCallback
+import { createDoctorUser } from "@/app/actions/doctor-actions";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -21,11 +20,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
-import { UserPlus, Edit, Trash2, Clock, BriefcaseMedical, LayoutDashboard, UserCircle, Stethoscope, Phone, Home as HomeIcon } from "lucide-react";
+import { UserPlus, Edit, Trash2, Clock, BriefcaseMedical, LayoutDashboard, Search } from "lucide-react"; // Added Search Icon
 import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Assuming you have a Select component
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // --- Data Types ---
 interface Doctor {
@@ -35,11 +34,11 @@ interface Doctor {
   license_number: string;
   specialization: string;
   phone_number: string | null;
-  gender: 'Male' | 'Female' | 'Other' | null; // Use a specific set of values for gender
+  gender: 'Male' | 'Female' | 'Other' | null;
   address: string | null;
   active_status: boolean;
   employee_id: string | null;
-  users: { email: string } | null; // For fetching email from the related users table
+  users: { email: string } | null;
 }
 
 interface HealthcareFacility {
@@ -59,6 +58,7 @@ export function AdminDoctorManagement() {
 
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState(""); // <-- State for the search input
   
   const [showCreateDoctorDialog, setShowCreateDoctorDialog] = useState(false);
   const [showEditDoctorDialog, setShowEditDoctorDialog] = useState(false);
@@ -82,10 +82,7 @@ export function AdminDoctorManagement() {
     fetchFacilities();
   }, [supabase]);
 
-  // --- REFACTORED DATA FETCHING ---
   const fetchInitialData = useCallback(async () => {
-    // No need to set loading to true here for refreshes, only for initial load.
-    // This provides a smoother UX.
     const { data, error } = await supabase
       .from('doctors')
       .select(`
@@ -98,13 +95,10 @@ export function AdminDoctorManagement() {
     } else {
       setDoctors(data as Doctor[]);
     }
-    setLoading(false); // Ensure loading is false after fetch completes
+    setLoading(false);
   }, [supabase]);
 
-
-  // --- Data Fetching and Realtime Subscription ---
   useEffect(() => {
-    // Set loading to true only on the initial mount
     setLoading(true);
     fetchInitialData();
 
@@ -114,27 +108,22 @@ export function AdminDoctorManagement() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'doctors' },
         (payload) => {
-          console.log('Change received!', payload);
-          // Re-fetch data on any change
           fetchInitialData();
         }
       )
       .subscribe();
 
-    // Cleanup subscription on component unmount
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, fetchInitialData]); // Add fetchInitialData to dependency array
+  }, [supabase, fetchInitialData]);
 
-// --- CRUD Handlers ---
 const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
   event.preventDefault();
   const form = event.currentTarget;
   const formData = new FormData(form);
 
   const doctorData = {
-    // Make sure the `name` attribute in your input matches these keys
     email: formData.get('email') as string,
     password: formData.get('password') as string,
     full_name: formData.get('fullName') as string,
@@ -148,11 +137,10 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
   };
 
   if (!doctorData.facilityId) {
-        toast({ title: "Error", description: "Please assign a healthcare facility.", variant: "destructive" });
-        return;
+      toast({ title: "Error", description: "Please assign a healthcare facility.", variant: "destructive" });
+      return;
     }
 
-  // Simple validation
   if (!doctorData.email || !doctorData.password || !doctorData.full_name) {
     toast({
       title: "Missing Information",
@@ -162,10 +150,8 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
     return;
   }
 
-   // Call the Server Action
   const result = await createDoctorUser(doctorData);
 
-  // Show only the final success or error toast
   if (result.success) {
     toast({
       title: "Success!",
@@ -186,12 +172,11 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
   const handleUpdateDoctor = async () => {
       if (!selectedDoctor) return;
 
-      // Destructure to remove the nested 'users' object before updating
       const { users, ...updateData } = editFormData;
 
       const { error } = await supabase
         .from('doctors')
-        .update(updateData) // Use the cleaned data object
+        .update(updateData)
         .eq('doctor_id', selectedDoctor.doctor_id);
 
       if (error) {
@@ -199,13 +184,10 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
       } else {
         toast({ title: "Success", description: "Doctor information has been updated." });
         setShowEditDoctorDialog(false);
-        
-        // Manually refetch the data for an instant UI update.
         fetchInitialData(); 
       }
     };
 
-  // Dummy delete handler to demonstrate refresh
   const handleDeleteDoctor = async () => {
       if (!selectedDoctor) return;
       
@@ -219,8 +201,6 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
       } else {
           toast({ title: "Success", description: "Doctor has been deleted." });
           setShowEditDoctorDialog(false);
-          
-          // Manually refetch the data for an instant UI update.
           fetchInitialData();
       }
   };
@@ -231,9 +211,20 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
     setShowEditDoctorDialog(true);
   };
 
+  // --- FILTERING LOGIC ---
+  const filteredDoctors = doctors.filter(doctor => {
+    const term = searchTerm.toLowerCase();
+    return (
+      doctor.full_name.toLowerCase().includes(term) ||
+      (doctor.users?.email && doctor.users.email.toLowerCase().includes(term)) ||
+      doctor.specialization.toLowerCase().includes(term)
+    );
+  });
+
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon" className="border-r-0">
+        {/* Sidebar content remains unchanged */}
         <SidebarHeader className="border-b border-border/40 pb-4">
           <SidebarMenu>
             <SidebarMenuItem>
@@ -278,56 +269,77 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
       <SidebarInset className="flex flex-col min-h-screen">
         <Header pageTitle="Doctor Management" />
         <main className="flex-1 p-4 md:p-8">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Doctor Accounts</CardTitle>
-                  <CardDescription>Manage doctor profiles. The list will auto-refresh on changes.</CardDescription>
-                </div>
-                <Button onClick={() => setShowCreateDoctorDialog(true)}><UserPlus className="h-4 w-4 mr-2" />Create Doctor</Button>
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              {/* Title and Description on the left */}
+              <div className="flex-1">
+                <CardTitle>Doctor Accounts</CardTitle>
+                <CardDescription>Manage and search for doctor profiles.</CardDescription>
               </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Full Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Specialization</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow><TableCell colSpan={4} className="text-center">Loading doctors...</TableCell></TableRow>
-                  ) : doctors.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} className="text-center">No doctors found.</TableCell></TableRow>
-                  ) : (
-                    doctors.map((doctor) => (
-                      <TableRow key={doctor.doctor_id} onClick={() => openEditModal(doctor)} className="cursor-pointer hover:bg-muted/50">
-                        <TableCell className="font-medium">{doctor.full_name}</TableCell>
-                        <TableCell>{doctor.users?.email ?? 'N/A'}</TableCell>
-                        <TableCell>{doctor.specialization}</TableCell>
-                        <TableCell>
-                          <Badge variant={doctor.active_status ? "default" : "destructive"}>
-                            {doctor.active_status ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </main>
+
+              {/* --- NEW: Group for Search and Button on the right --- */}
+              <div className="flex items-center gap-2">
+                {/* Search Input */}
+                <div className="relative w-full sm:max-w-xs">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    type="search"
+                    placeholder="Search by name, email..."
+                    className="w-full pl-9 h-10"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                {/* Create Doctor Button */}
+                <Button onClick={() => setShowCreateDoctorDialog(true)}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Create Doctor
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* The "Create Doctor" button has been removed from here */}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Full Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Specialization</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow><TableCell colSpan={4} className="text-center">Loading doctors...</TableCell></TableRow>
+                ) : filteredDoctors.length === 0 ? (
+                  <TableRow><TableCell colSpan={4} className="text-center">No doctors found matching "{searchTerm}".</TableCell></TableRow>
+                ) : (
+                  filteredDoctors.map((doctor) => (
+                    <TableRow key={doctor.doctor_id} onClick={() => openEditModal(doctor)} className="cursor-pointer hover:bg-muted/50">
+                      <TableCell className="font-medium">{doctor.full_name}</TableCell>
+                      <TableCell>{doctor.users?.email ?? 'N/A'}</TableCell>
+                      <TableCell>{doctor.specialization}</TableCell>
+                      <TableCell>
+                        <Badge variant={doctor.active_status ? "default" : "destructive"}>
+                          {doctor.active_status ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </main>
         <Footer />
       </SidebarInset>
 
-      {/* Create Doctor Dialog remains the same */}
+      {/* Dialogs for Create and Edit remain unchanged */}
       <Dialog open={showCreateDoctorDialog} onOpenChange={setShowCreateDoctorDialog}>
-        <DialogContent className="max-w-2xl"> {/* Increased width for better layout */}
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Create New Doctor Account</DialogTitle>
             <DialogDescription>Fill in the details below. An email verification will be sent.</DialogDescription>
@@ -344,7 +356,6 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
                   <Input id="email" name="email" type="email" required />
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="specialization">Specialization</Label>
@@ -355,8 +366,6 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
                   <Input id="licenseNumber" name="licenseNumber" required />
                 </div>
               </div>
-
-              {/* --- ADDED FIELDS --- */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="phoneNumber">Phone Number</Label>
@@ -367,7 +376,6 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
                   <Input id="employeeId" name="employeeId" />
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                       <Label htmlFor="gender">Gender</Label>
@@ -387,7 +395,6 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
                       <Input id="password" name="password" type="password" required />
                   </div>
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="facilityId">Healthcare Facility</Label>
                 <Select name="facilityId" required>
@@ -402,14 +409,11 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
                     ))}
                   </SelectContent>
                 </Select>
-            </div>
-              
+              </div>
               <div className="space-y-2">
                   <Label htmlFor="address">Address</Label>
                   <Input id="address" name="address" placeholder="Enter full address" />
               </div>
-              {/* --- END OF ADDED FIELDS --- */}
-
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowCreateDoctorDialog(false)}>Cancel</Button>
@@ -419,7 +423,6 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
         </DialogContent>
       </Dialog>
       
-      {/* --- UPDATED EDIT DOCTOR DIALOG --- */}
       <Dialog open={showEditDoctorDialog} onOpenChange={setShowEditDoctorDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -428,8 +431,6 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
           </DialogHeader>
           {selectedDoctor && (
             <div className="grid gap-6 py-4">
-              {/* Other input fields like Full Name, Specialization, etc. go here */}
-              
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit_full_name">Full Name</Label>
@@ -450,12 +451,9 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
                   <Input id="edit_phone_number" value={editFormData.phone_number ?? ''} onChange={(e) => setEditFormData({...editFormData, phone_number: e.target.value})} />
                 </div>
               </div>
-              
-              {/* --- GENDER AND EMPLOYEE ID INPUTS --- */}
               <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                       <Label htmlFor="edit_gender">Gender</Label>
-                      {/* This correctly displays the gender from the database */}
                       <Select
                           value={editFormData.gender ?? undefined}
                           onValueChange={(value) => setEditFormData({ ...editFormData, gender: value as Doctor['gender'] })}
@@ -475,7 +473,6 @@ const handleCreateDoctor = async (event: React.FormEvent<HTMLFormElement>) => {
                       <Input id="edit_employee_id" value={editFormData.employee_id ?? ''} onChange={(e) => setEditFormData({...editFormData, employee_id: e.target.value})} />
                   </div>
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="edit_address">Address</Label>
                 <Input id="edit_address" value={editFormData.address ?? ''} onChange={(e) => setEditFormData({...editFormData, address: e.target.value})} />
