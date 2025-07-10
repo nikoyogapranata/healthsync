@@ -89,7 +89,7 @@ interface PrescriptionItem {
 const doctorNavigationItems = [
   { title: "Dashboard", url: "/doctor-dashboard", icon: LayoutDashboard },
   { title: "Patient Queue", url: "/doctor-queue", icon: Users },
-  { title: "Medical Records", url: "/doctor-records", icon: FileText },
+  { title: "Medical Records", url: "/medical-records", icon: FileText },
   { title: "My Schedule", url: "/doctor-schedule", icon: CalendarDays },
 ];
 
@@ -286,7 +286,7 @@ export function DashboardDoctor() {
                   <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 to-slate-900/60"></div>
                </div>
                <div className="relative z-10 p-8 text-white md:w-2/3">
-                  <h1 className="text-3xl font-bold">{greeting}, Dr. {doctorName}!</h1>
+                  <h1 className="text-3xl font-bold">{greeting}, {doctorName}!</h1>
                   <p className="mt-2 text-gray-200">Thank you for your dedication. Here’s what your day looks like.</p>
                   <Button asChild className="mt-4 bg-white text-slate-900 hover:bg-gray-200">
                     <Link href="/doctor-schedule">View Today's Schedule <ChevronRight className="ml-2 h-4 w-4" /></Link>

@@ -1,3 +1,5 @@
+//components\patients-medical-records-system.tsx
+
 "use client"
 import { useState, useEffect, useRef } from "react" // Import useRef
 import Link from "next/link"
@@ -261,7 +263,7 @@ function PatientSidebar() {
       <SidebarContent className="px-2 py-4">
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground/80 uppercase tracking-wider mb-2 px-2">
-            My Health
+            NAVIGATION
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">

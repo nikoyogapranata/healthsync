@@ -65,7 +65,7 @@ import { Label } from "@/components/ui/label";
 const navigationItems = [
   { title: "Dashboard", url: "/doctor-dashboard", icon: LayoutDashboard },
   { title: "Patient Queue", url: "/doctor-queue", icon: Users },
-  { title: "Medical Records", url: "/doctor-records", icon: FileText },
+  { title: "Medical Records", url: "/medical-records", icon: FileText },
   { title: "My Schedule", url: "/doctor-schedule", icon: CalendarDays },
 ];
 
