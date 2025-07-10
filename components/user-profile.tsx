@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useEffect, useState, useRef, type ChangeEvent } from "react"
 import Link from "next/link"
 import Image from "next/image"
@@ -78,9 +77,10 @@ export interface UserProfileData {
   bloodType?: "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-"
   address?: string
   profileImage?: string
+  userRole?: string // Add this to track which table the user belongs to
 }
 
-type FormInputs = Omit<UserProfileData, "userId" | "email" | "nationalId">
+type FormInputs = Omit<UserProfileData, "userId" | "email" | "nationalId" | "userRole">
 
 // Komponen Header Terpisah dengan Profile Photo
 function ProfileHeader({ user }: { user: UserProfileData | null }) {
@@ -120,7 +120,7 @@ function ProfileHeader({ user }: { user: UserProfileData | null }) {
           <div className="flex items-center gap-3">
             <div className="text-right">
               <p className="text-sm font-medium text-gray-900">{user.fullName}</p>
-              <p className="text-xs text-gray-500">HealthSync Patient</p>
+              <p className="text-xs text-gray-500">HealthSync {user.userRole || 'User'}</p>
             </div>
             <Avatar className="h-10 w-10 border-2 border-[#3FB6F6]/20">
               <AvatarImage
@@ -140,15 +140,15 @@ function ProfileHeader({ user }: { user: UserProfileData | null }) {
 }
 
 // Komponen Reusable Sidebar (tanpa active state untuk profile)
-const navigationItems = [
-  { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "Appointments", url: "/appointments", icon: Calendar },
-  { title: "Medical Records", url: "/patients-medical-records", icon: FileText },
-  { title: "Ask AI", url: "/ask-ai", icon: MessageCircle },
-  { title: "Settings", url: "/settings", icon: Settings },
-]
+function AppSidebar({ dashboardPath }: { dashboardPath: string }) {
+    const navigationItems = [
+        { title: "Dashboard", url: dashboardPath, icon: Home },
+        { title: "Appointments", url: "/appointments", icon: Calendar },
+        { title: "Medical Records", url: "/patients-medical-records", icon: FileText },
+        { title: "Ask AI", url: "/ask-ai", icon: MessageCircle },
+        { title: "Settings", url: "/settings", icon: Settings },
+    ]
 
-function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r-0">
       <SidebarHeader className="border-b border-border/40 pb-4">
@@ -156,7 +156,7 @@ function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
               <Link
-                href="/dashboard"
+                href={dashboardPath} // UPDATED
                 className="flex items-center gap-3 px-2 group-data-[collapsible=icon]:justify-center"
               >
                 <div className="flex aspect-square size-10 items-center justify-center rounded-xl pl-2 pt-2">
@@ -211,6 +211,7 @@ export default function UserProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [imageVersion, setImageVersion] = useState(0)
+  const [dashboardPath, setDashboardPath] = useState("/dashboard") // ADDED: State for dynamic dashboard path
   const supabase = createClient()
 
   // Fungsi untuk mendapatkan URL gambar yang benar
@@ -225,37 +226,73 @@ export default function UserProfilePage() {
     return `${data.publicUrl}?v=${imageVersion}&t=${Date.now()}`
   }
 
-  // Fungsi untuk memuat ulang data pengguna
+  // ====================================================================
+  // ===== FIXED FETCH USER PROFILE FUNCTION =====
+  // ====================================================================
   const fetchUserProfile = async () => {
     try {
       setLoading(true)
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser()
-      if (!authUser) throw new Error("User not authenticated.")
+      setError(null)
 
-      const { data: patientData, error: patientError } = await supabase
-        .from("patients")
-        .select("*")
-        .eq("user_id", authUser.id)
-        .single()
-
-      if (patientError) throw patientError
-
-      const processedData: UserProfileData = {
-        userId: authUser.id,
-        fullName: patientData.full_name,
-        nationalId: patientData.national_id,
-        email: authUser.email || patientData.email,
-        phoneNumber: patientData.phone_number,
-        dateOfBirth: patientData.date_of_birth,
-        gender: patientData.gender,
-        bloodType: patientData.blood_type,
-        address: patientData.address,
-        profileImage: patientData.profile_picture,
+      // Get authenticated user
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+      
+      if (authError || !authUser) {
+        throw new Error("User not authenticated. Please log in.")
       }
-      setUser(processedData)
+
+      console.log("Authenticated user ID:", authUser.id)
+
+      let userProfileData = null
+      let userRole = null
+      const tablesToTry = [
+        { table: 'patients', role: 'Patient' },
+        { table: 'doctors', role: 'Doctor' },
+        { table: 'admins', role: 'Admin' },
+        { table: 'directors', role: 'Director' }
+      ]
+
+      // Try to find user in each table
+      for (const { table, role } of tablesToTry) {
+        console.log(`Checking table: ${table}`)
+        
+        const { data, error } = await supabase
+          .from(table)
+          .select("*")
+          .eq("user_id", authUser.id)
+          .maybeSingle() // Use maybeSingle instead of single to avoid errors when no record found
+
+        console.log(`Result from ${table}:`, { data, error })
+
+        if (data && !error) {
+          // Map the data to our interface
+          userProfileData = {
+            userId: authUser.id,
+            fullName: data.full_name || data.name || 'Unknown',
+            nationalId: data.national_id || data.nik || 'N/A',
+            email: authUser.email || data.email || 'N/A',
+            phoneNumber: data.phone_number || data.phone || 'N/A',
+            dateOfBirth: data.date_of_birth || data.birth_date || '',
+            gender: data.gender || 'Other',
+            bloodType: data.blood_type || undefined,
+            address: data.address || undefined,
+            profileImage: data.profile_picture || data.avatar_url || data.photo || undefined,
+            userRole: role
+          }
+          userRole = role
+          console.log(`Found user in ${table} table as ${role}`)
+          break
+        }
+      }
+
+      if (!userProfileData) {
+        throw new Error("Profile not found in any table. Please contact support.")
+      }
+
+      console.log("Final user profile data:", userProfileData)
+      setUser(userProfileData as UserProfileData)
       setImageVersion((prev) => prev + 1)
+      
     } catch (err: any) {
       console.error("Error fetching user profile:", err)
       setError(err.message || "Failed to fetch profile data.")
@@ -267,6 +304,27 @@ export default function UserProfilePage() {
   useEffect(() => {
     fetchUserProfile()
   }, [])
+  
+  // ADDED: useEffect to set dashboard path based on user role
+  useEffect(() => {
+    if (user?.userRole) {
+      switch (user.userRole.toLowerCase()) {
+        case 'doctor':
+          setDashboardPath('/doctor-dashboard'); // Or your actual doctor dashboard path
+          break;
+        case 'admin':
+          setDashboardPath('/dashboard-admin'); // Or your actual admin dashboard path
+          break;
+        case 'director':
+            setDashboardPath('dashboard-direktur'); // Or your actual director dashboard path
+            break;
+        case 'patient':
+        default:
+          setDashboardPath('/dashboard'); // Default for patients
+          break;
+      }
+    }
+  }, [user]); // This effect runs whenever the 'user' object changes
 
   // Helper Functions
   const getInitials = (name: string) => {
@@ -301,8 +359,11 @@ export default function UserProfilePage() {
   // Tampilan Error
   if (error || !user) {
     return (
-      <div className="flex h-screen items-center justify-center text-red-600">
-        <p>Error: {error || "Could not load user profile."}</p>
+      <div className="flex h-screen flex-col items-center justify-center text-red-600">
+        <p className="text-lg mb-4">Error: {error || "Could not load user profile."}</p>
+        <Button onClick={fetchUserProfile} className="bg-[#3FB6F6] hover:bg-[#34D399]">
+          Try Again
+        </Button>
       </div>
     )
   }
@@ -312,18 +373,20 @@ export default function UserProfilePage() {
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       <SidebarProvider>
-        <AppSidebar />
+        {/* UPDATED: Pass dashboardPath as a prop */}
+        <AppSidebar dashboardPath={dashboardPath} />
         <SidebarInset className="flex flex-1 flex-col">
           {/* Header dengan Profile Photo */}
           <ProfileHeader user={user} />
 
           <main className="flex-1">
-            {/* Navigation Bar - HAPUS DUPLICATE TITLE */}
+            {/* Navigation Bar */}
             <div className="border-b border-gray-200 bg-white">
               <div className="mx-auto max-w-6xl px-6 py-4">
                 <div className="flex items-center justify-between">
+                  {/* UPDATED: Link uses dynamic dashboardPath */}
                   <Link
-                    href="/dashboard"
+                    href={dashboardPath} 
                     className="group flex items-center gap-2 text-gray-600 transition-colors hover:text-[#3FB6F6]"
                   >
                     <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
@@ -341,6 +404,7 @@ export default function UserProfilePage() {
             </div>
 
             <div className="mx-auto max-w-6xl space-y-6 p-6">
+              {/* Profile Card */}
               <Card className="border-l-4 border-l-[#3FB6F6] bg-white shadow-sm">
                 <CardContent className="py-8">
                   <div className="flex flex-col items-center space-y-4 text-center">
@@ -358,13 +422,14 @@ export default function UserProfilePage() {
                       <h3 className="mb-2 text-2xl font-bold text-gray-900">{user.fullName}</h3>
                       <div className="flex items-center justify-center gap-2 font-medium text-[#3FB6F6]">
                         <Heart className="h-4 w-4" />
-                        <span>HealthSync Patient</span>
+                        <span>HealthSync {user.userRole || 'User'}</span>
                       </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
+              {/* Personal Information Card */}
               <Card className="border-l-4 border-l-[#34D399] bg-white shadow-sm">
                 <CardHeader className="pb-4">
                   <CardTitle className="flex items-center gap-3 text-gray-900">
@@ -405,6 +470,7 @@ export default function UserProfilePage() {
                 </CardContent>
               </Card>
 
+              {/* Contact Information Card */}
               <Card className="border-l-4 border-l-[#3FB6F6] bg-white shadow-sm">
                 <CardHeader className="pb-4">
                   <CardTitle className="flex items-center gap-3 text-gray-900">
@@ -528,7 +594,6 @@ function EditProfileModal({
         const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(filePath)
         newImageUrl = urlData.publicUrl
 
-        // Hapus gambar lama
         if (user.profileImage && user.profileImage !== newImageUrl) {
           try {
             const oldPath = user.profileImage.includes("/avatars/")
@@ -544,9 +609,18 @@ function EditProfileModal({
         }
       }
 
-      // PERBAIKAN: Hapus baris updated_at yang menyebabkan error
+      // Determine which table to update based on user role
+      const roleToTableMap: Record<string, string> = {
+        'Patient': 'patients',
+        'Doctor': 'doctors',
+        'Admin': 'admins',
+        'Director': 'directors'
+      }
+
+      const tableName = roleToTableMap[user.userRole || 'Patient'] || 'patients'
+
       const { error: updateError } = await supabase
-        .from("patients")
+        .from(tableName)
         .update({
           full_name: data.fullName,
           phone_number: data.phoneNumber,
@@ -555,7 +629,6 @@ function EditProfileModal({
           blood_type: data.bloodType,
           address: data.address,
           profile_picture: newImageUrl,
-          // HAPUS BARIS INI: updated_at: new Date().toISOString(),
         })
         .eq("user_id", user.userId)
 
@@ -568,6 +641,16 @@ function EditProfileModal({
       console.error("Error updating profile:", error)
       alert(`Failed to update profile: ${error.message}`)
     }
+  }
+
+  const getInitials = (name: string) => {
+    if (!name) return ""
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
   }
 
   return (
@@ -730,14 +813,4 @@ function InfoItem({
       </div>
     </div>
   )
-}
-
-function getInitials(name: string) {
-  if (!name) return ""
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2)
 }
