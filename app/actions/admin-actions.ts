@@ -1,52 +1,67 @@
-// app/actions/admin-actions.ts
+"use server";
 
-"use server"
-
+// Import the base creator for the admin client
+import { createClient as createAdminClient } from '@supabase/supabase-js';
+// This is your standard server client that acts on behalf of the user
 import { createClient } from "@/utils/supabase/server";
 
+/**
+ * Creates a special Supabase client with admin privileges using the service_role key.
+ * This is necessary for performing actions like creating or deleting users.
+ */
+function getAdminClient() {
+  // Ensure the required environment variables are set.
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("Missing Supabase URL or Service Role Key for admin client.");
+  }
+  
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+}
+
 export async function createAdminUser(formData: {
-  fullName: string
-  email: string
-  password: string
-  facilityId: string
+  fullName: string;
+  email: string;
+  password: string;
+  facilityId: string;
 }) {
   const supabase = createClient();
+  const supabaseAdmin = getAdminClient(); // Use the privileged client for auth actions
 
-  // Step 1: Create the user in Supabase's authentication system.
-  const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+  // Step 1: Create the user with the admin client
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: formData.email,
     password: formData.password,
-    options: {
-      data: {
-        full_name: formData.fullName,
-        role: "admin", // Metadata for the auth user
-      },
+    user_metadata: {
+      full_name: formData.fullName,
+      role: "admin",
     },
+    email_confirm: false,
   });
 
-  if (signUpError) {
-    console.error("Error signing up admin:", signUpError.message);
-    return { success: false, message: signUpError.message };
+  if (authError) {
+    console.error("Error creating admin auth user:", authError.message);
+    return { success: false, message: authError.message };
   }
 
   if (user) {
-    // Step 2: Create a corresponding record in your public 'users' table to satisfy the foreign key.
+    // Step 2: Create a corresponding record in your public 'users' table.
     const { error: publicUserError } = await supabase.from("users").insert({
-        user_id: user.id,
-        email: user.email,
-        role: "admin",
+      user_id: user.id,
+      email: user.email,
+      role: "admin",
     });
 
     if (publicUserError) {
-        console.error("Error creating public user record:", publicUserError.message);
-        // Clean up the auth user if this step fails
-        await supabase.auth.admin.deleteUser(user.id);
-        return { success: false, message: "Failed to create user record." };
+      console.error("Error creating public user record for admin:", publicUserError.message);
+      await supabaseAdmin.auth.admin.deleteUser(user.id); // Cleanup with admin client
+      return { success: false, message: "Failed to create user record." };
     }
 
-    // Step 3: Now that the public user exists, create the admin profile.
+    // Step 3: Create the admin profile.
     const { error: adminError } = await supabase.from("admins").insert({
-      admin_id: crypto.randomUUID(),
       user_id: user.id,
       healthcare_facility_id: formData.facilityId,
       full_name: formData.fullName,
@@ -54,14 +69,13 @@ export async function createAdminUser(formData: {
 
     if (adminError) {
       console.error("Error creating admin profile:", adminError.message);
-      // Clean up both the auth user and the public user record
-      await supabase.auth.admin.deleteUser(user.id);
+      await supabaseAdmin.auth.admin.deleteUser(user.id); // Cleanup with admin client
       return { success: false, message: "Failed to create admin profile." };
     }
 
     return {
       success: true,
-      message: `Admin account for ${formData.email} created. A verification email has been sent.`,
+      message: `Admin account for ${formData.email} created successfully.`,
     };
   }
 
@@ -69,47 +83,43 @@ export async function createAdminUser(formData: {
 }
 
 export async function createDirectorUser(formData: {
-  fullName:string
-  email: string
-  password: string
-  facilityId: string
+  fullName: string;
+  email: string;
+  password: string;
+  facilityId: string;
 }) {
   const supabase = createClient();
+  const supabaseAdmin = getAdminClient(); // Use the privileged client for auth actions
 
-  // Step 1: Create the user in Supabase's authentication system.
-  const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: formData.email,
     password: formData.password,
-    options: {
-      data: {
-        full_name: formData.fullName,
-        role: "director",
-      },
+    user_metadata: {
+      full_name: formData.fullName,
+      role: "director",
     },
+    email_confirm: false,
   });
 
-  if (signUpError) {
-    console.error("Error signing up director:", signUpError.message);
-    return { success: false, message: signUpError.message };
+  if (authError) {
+    console.error("Error creating director auth user:", authError.message);
+    return { success: false, message: authError.message };
   }
 
   if (user) {
-    // Step 2: Create a corresponding record in your public 'users' table.
     const { error: publicUserError } = await supabase.from("users").insert({
-        user_id: user.id,
-        email: user.email,
-        role: "director",
+      user_id: user.id,
+      email: user.email,
+      role: "director",
     });
 
     if (publicUserError) {
-        console.error("Error creating public user record:", publicUserError.message);
-        await supabase.auth.admin.deleteUser(user.id);
-        return { success: false, message: "Failed to create user record." };
+      console.error("Error creating public user record for director:", publicUserError.message);
+      await supabaseAdmin.auth.admin.deleteUser(user.id);
+      return { success: false, message: "Failed to create user record." };
     }
 
-    // Step 3: Now that the public user exists, create the director profile.
     const { error: directorError } = await supabase.from("directors").insert({
-      director_id: crypto.randomUUID(),
       user_id: user.id,
       healthcare_facility_id: formData.facilityId,
       full_name: formData.fullName,
@@ -117,13 +127,87 @@ export async function createDirectorUser(formData: {
 
     if (directorError) {
       console.error("Error creating director profile:", directorError.message);
-      await supabase.auth.admin.deleteUser(user.id);
+      await supabaseAdmin.auth.admin.deleteUser(user.id);
       return { success: false, message: "Failed to create director profile." };
     }
 
     return {
       success: true,
-      message: `Director account for ${formData.email} created. A verification email has been sent.`,
+      message: `Director account for ${formData.email} created successfully.`,
+    };
+  }
+
+  return { success: false, message: "An unknown error occurred." };
+}
+
+export async function createRegionalAdminUser(formData: {
+  fullName: string;
+  email: string;
+  password: string;
+  nationalId: string;
+  dateOfBirth: string;
+  gender: string;
+  bloodType: string;
+  phoneNumber: string;
+  provinceId: string;
+  regencyId: string;
+  districtId: string;
+  streetAddress?: string; // Can be optional
+}) {
+  const supabase = createClient();
+  const supabaseAdmin = getAdminClient(); // Use the privileged client for auth actions
+
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    email: formData.email,
+    password: formData.password,
+    user_metadata: {
+      full_name: formData.fullName,
+      role: "regional_admin",
+    },
+    email_confirm: false,
+  });
+
+  if (authError) {
+    console.error("Error creating regional admin auth user:", authError.message);
+    return { success: false, message: authError.message };
+  }
+
+  if (user) {
+    const { error: publicUserError } = await supabase.from("users").insert({
+      user_id: user.id,
+      email: user.email,
+      role: "regional_admin",
+    });
+
+    if (publicUserError) {
+      console.error("Error creating public user record for regional admin:", publicUserError.message);
+      await supabaseAdmin.auth.admin.deleteUser(user.id);
+      return { success: false, message: "Failed to create user record." };
+    }
+
+    const { error: profileError } = await supabase.from("regional_admins").insert({
+      user_id: user.id,
+      full_name: formData.fullName,
+      national_id: formData.nationalId,
+      date_of_birth: formData.dateOfBirth,
+      gender: formData.gender,
+      blood_type: formData.bloodType,
+      phone_number: formData.phoneNumber,
+      province_id: parseInt(formData.provinceId, 10),
+      regency_id: parseInt(formData.regencyId, 10),
+      district_id: parseInt(formData.districtId, 10),
+      street_address: formData.streetAddress,
+    });
+
+    if (profileError) {
+      console.error("Error creating regional admin profile:", profileError.message);
+      await supabaseAdmin.auth.admin.deleteUser(user.id);
+      return { success: false, message: "Failed to create regional admin profile." };
+    }
+
+    return {
+      success: true,
+      message: `Regional Admin account for ${formData.email} created successfully.`,
     };
   }
 

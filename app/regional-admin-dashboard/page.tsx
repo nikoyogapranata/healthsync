@@ -1,12 +1,12 @@
-import { SuperadminDashboard } from "@/components/superadmin-dashboard"
+import { RegionalAdminDashboard } from "@/components/regional-admin-dashboard"
 import { AuthGuard } from "@/components/auth-guard"
 
 export default function SuperadminDashboardPage() {
   return (
-    <AuthGuard allowedRoles={["superadmin"]}>
+    <AuthGuard allowedRoles={["regional_admin"]}>
       <main className="min-h-screen w-full bg-[#f9fafb]">
         <div className="w-full h-full">
-          <SuperadminDashboard/>
+          <RegionalAdminDashboard/>
         </div>
       </main>
     </AuthGuard>

@@ -1,7 +1,10 @@
+//components\regional-admin-dashboard.tsx
+
 "use client";
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   Users,
   UserPlus,
@@ -22,7 +25,6 @@ import {
   LayoutDashboard,
   BarChart2,
   Settings,
-  ShieldCheck,
 } from "lucide-react";
 
 // UI Components
@@ -30,22 +32,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
@@ -57,7 +46,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
-import { Textarea } from "@/components/ui/textarea";
 
 // Reusable Layout Components
 import { Header } from "@/components/ui/header";
@@ -80,15 +68,8 @@ import { cn } from "@/lib/utils";
 
 // Supabase and Server Actions
 import { createClient } from "@/utils/supabase/client";
-import {
-  createAdminUser,
-  createDirectorUser,
-  createRegionalAdminUser,
-} from "@/app/actions/admin-actions";
-import {
-  fetchUserStats,
-  fetchAllUsers,
-} from "@/app/actions/superadmin-actions";
+import { createAdminUser, createDirectorUser } from "@/app/actions/admin-actions";
+import { fetchUserStats, fetchAllUsers } from "@/app/actions/regional-admin-actions";
 
 // Interfaces
 interface User {
@@ -101,18 +82,7 @@ interface User {
   healthcare_facility?: string;
   email_confirmed_at?: string;
 }
-interface Province {
-  province_id: number;
-  name: string;
-}
-interface Regency {
-  regency_id: number;
-  name: string;
-}
-interface District {
-  district_id: number;
-  name: string;
-}
+
 interface HealthcareFacility {
   healthcare_facility_id: string;
   name: string;
@@ -123,6 +93,7 @@ interface HealthcareFacility {
   province_name?: string;
   total_users: number;
 }
+
 interface SystemStats {
   totalUsers: number;
   totalPatients: number;
@@ -155,40 +126,21 @@ const pageTitles: { [key: string]: string } = {
 };
 
 // --- AppSidebar Component ---
-function AppSidebar({
-  activeTab,
-  setActiveTab,
-}: {
-  activeTab: string;
-  setActiveTab: (id: string) => void;
-}) {
-  // This component's code remains the same...
+function AppSidebar({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (id: string) => void }) {
   return (
     <Sidebar collapsible="icon" className="border-r-0">
       <SidebarHeader className="border-b border-border/40 pb-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              asChild
-              className="hover:bg-transparent"
-            >
+            <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
+              {/* Using a div because it controls local state, not a link */}
               <div className="flex items-center gap-3 px-2 group-data-[collapsible=icon]:justify-center">
                 <div className="flex aspect-square size-10 items-center justify-center rounded-xl pl-2 pt-2">
-                  <Image
-                    src="/illustrations/logo.png"
-                    alt="HealthSync Logo"
-                    width={28}
-                    height={28}
-                  />
+                  <Image src="/illustrations/logo.png" alt="HealthSync Logo" width={28} height={28} />
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
-                  <span className="font-bold text-lg text-foreground">
-                    HealthSync
-                  </span>
-                  <span className="text-xs text-muted-foreground font-medium">
-                    superadmin Dashboard
-                  </span>
+                  <span className="font-bold text-lg text-foreground">HealthSync</span>
+                  <span className="text-xs text-muted-foreground font-medium">regional-admin Dashboard</span>
                 </div>
               </div>
             </SidebarMenuButton>
@@ -214,14 +166,12 @@ function AppSidebar({
                       "data-[active=true]:bg-gradient-to-r data-[active=true]:from-[#3FB6F6]/10 data-[active=true]:to-[#34D399]/10",
                       "data-[active=true]:border data-[active=true]:border-[#3FB6F6]/20",
                       "data-[active=true]:text-[#3FB6F6] data-[active=true]:font-semibold",
-                      "data-[active=true]:shadow-sm"
+                      "data-[active=true]:shadow-sm",
                     )}
                   >
                     <div className="flex items-center gap-3">
                       <item.icon className="size-5" />
-                      <span className="text-sm group-data-[collapsible=icon]:hidden">
-                        {item.title}
-                      </span>
+                      <span className="text-sm group-data-[collapsible=icon]:hidden">{item.title}</span>
                     </div>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -236,11 +186,10 @@ function AppSidebar({
 }
 
 // --- Main Dashboard Component ---
-export function SuperadminDashboard() {
+export function RegionalAdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [showCreateAdmin, setShowCreateAdmin] = useState(false);
   const [showCreateDirector, setShowCreateDirector] = useState(false);
-  const [showCreateRegionalAdmin, setShowCreateRegionalAdmin] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -258,62 +207,75 @@ export function SuperadminDashboard() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showDirectorPassword, setShowDirectorPassword] = useState(false);
-  const [showRegionalAdminPassword, setShowRegionalAdminPassword] =
-    useState(false);
-  const [provinces, setProvinces] = useState<Province[]>([]);
-  const [regencies, setRegencies] = useState<Regency[]>([]);
-  const [districts, setDistricts] = useState<District[]>([]);
-  const [addressLoading, setAddressLoading] = useState({
-    regencies: false,
-    districts: false,
-  });
 
-  const initialRegionalAdminForm = {
-    fullName: "",
-    email: "",
-    password: "",
-    nationalId: "",
-    dateOfBirth: "",
-    gender: "",
-    bloodType: "",
-    phoneNumber: "",
-    provinceId: "",
-    regencyId: "",
-    districtId: "",
-    streetAddress: "",
-  };
+  const [provinceId, setProvinceId] = useState<number | null>(null);
 
+  // Form states
   const [adminForm, setAdminForm] = useState({
     fullName: "",
     email: "",
     password: "",
     facilityId: "",
   });
+
   const [directorForm, setDirectorForm] = useState({
     fullName: "",
     email: "",
     password: "",
     facilityId: "",
   });
-  const [regionalAdminForm, setRegionalAdminForm] = useState(
-    initialRegionalAdminForm
-  );
 
   const supabase = createClient();
 
+  // Fetch all data on component mount
   useEffect(() => {
-    fetchFacilities();
-    fetchUsers();
-    fetchStatsData();
+    // Only fetch data once the provinceId is known
+    if (provinceId) {
+      fetchFacilities(provinceId);
+      fetchUsers(provinceId);
+      fetchStatsData(provinceId);
+    }
+  }, [provinceId]);
+
+  useEffect(() => {
+    const fetchAdminProfile = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not authenticated");
+
+        const { data: regionalAdmin, error } = await supabase
+          .from('regional_admins')
+          .select('province_id')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error) throw error;
+        if (regionalAdmin?.province_id) {
+          setProvinceId(regionalAdmin.province_id);
+        } else {
+            throw new Error("Could not find province for regional admin.");
+        }
+      } catch (error) {
+        console.error("Error fetching admin profile:", error);
+        toast({
+          title: "Authentication Error",
+          description: "Could not verify your region. Please try logging in again.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchAdminProfile();
   }, []);
 
+  // Filter users based on search term
   useEffect(() => {
     if (searchTerm) {
       const filtered = users.filter(
         (user) =>
           user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.role.toLowerCase().includes(searchTerm.toLowerCase())
+          user.role.toLowerCase().includes(searchTerm.toLowerCase()),
       );
       setFilteredUsers(filtered);
     } else {
@@ -321,161 +283,76 @@ export function SuperadminDashboard() {
     }
   }, [searchTerm, users]);
 
-  useEffect(() => {
-    if (showCreateRegionalAdmin && provinces.length === 0) {
-      const getProvinces = async () => {
-        const { data, error } = await supabase
-          .from("provinces")
-          .select("province_id, name")
-          .order("name");
-        if (error) {
-          toast({
-            title: "Error",
-            description: "Could not load provinces.",
-            variant: "destructive",
-          });
-        } else if (data) {
-          setProvinces(data);
-        }
-      };
-      getProvinces();
-    }
-  }, [showCreateRegionalAdmin, provinces.length, supabase]);
-
-  useEffect(() => {
-    const provinceId = regionalAdminForm.provinceId;
-    if (provinceId) {
-      const getRegencies = async () => {
-        setAddressLoading((prev) => ({ ...prev, regencies: true }));
-        setRegencies([]);
-        setDistricts([]);
-        setRegionalAdminForm((prev) => ({
-          ...prev,
-          regencyId: "",
-          districtId: "",
-        }));
-
-        const { data, error } = await supabase
-          .from("regencies")
-          .select("*")
-          .eq("province_id", provinceId)
-          .order("name");
-
-        if (error) {
-          toast({
-            title: "Error",
-            description: "Could not load regencies.",
-            variant: "destructive",
-          });
-        } else if (data) {
-          setRegencies(data);
-        }
-        setAddressLoading((prev) => ({ ...prev, regencies: false }));
-      };
-      getRegencies();
-    }
-  }, [regionalAdminForm.provinceId, supabase]);
-
-  useEffect(() => {
-    const regencyId = regionalAdminForm.regencyId;
-    if (regencyId) {
-      const getDistricts = async () => {
-        setAddressLoading((prev) => ({ ...prev, districts: true }));
-        setDistricts([]);
-        setRegionalAdminForm((prev) => ({ ...prev, districtId: "" }));
-
-        const { data, error } = await supabase
-          .from("districts")
-          .select("*")
-          .eq("regency_id", regencyId)
-          .order("name");
-
-        if (error) {
-          toast({
-            title: "Error",
-            description: "Could not load districts.",
-            variant: "destructive",
-          });
-        } else if (data) {
-          setDistricts(data);
-        }
-        setAddressLoading((prev) => ({ ...prev, districts: false }));
-      };
-      getDistricts();
-    }
-  }, [regionalAdminForm.regencyId, supabase]);
-
-  const fetchFacilities = async () => {
+  const fetchFacilities = async (pid: number) => {
     try {
-      const { data, error } = await supabase.rpc("get_facilities_with_stats");
+      // Filter facilities by the admin's province ID
+      const { data, error } = await supabase
+        .from("healthcare_facilities")
+        .select("healthcare_facility_id, name, street_address, contact_number")
+        .eq("province_id", pid) // <-- The important filter
+        .order("name");
+
       if (error) throw error;
-      setFacilities(data || []);
+
+      const facilitiesWithStats = await Promise.all(
+        (data || []).map(async (facility) => {
+          const { count: adminCount } = await supabase.from("admins").select("*", { count: "exact", head: true }).eq("healthcare_facility_id", facility.healthcare_facility_id);
+          const { count: directorCount } = await supabase.from("directors").select("*", { count: "exact", head: true }).eq("healthcare_facility_id", facility.healthcare_facility_id);
+          return {
+            ...facility,
+            total_users: (adminCount || 0) + (directorCount || 0),
+          };
+        }),
+      );
+      setFacilities(facilitiesWithStats);
+
     } catch (error) {
       console.error("Error fetching facilities:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load healthcare facilities.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to load healthcare facilities", variant: "destructive" });
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (pid: number) => {
     setLoading(true);
     try {
-      const usersResult = await fetchAllUsers();
+      // Pass the provinceId to the server action
+      const usersResult = await fetchAllUsers(pid); 
       if (!usersResult.success || !usersResult.data) {
-        throw new Error(
-          usersResult.error || "An unknown error occurred while fetching users."
-        );
+        throw new Error(usersResult.error || "An unknown error occurred while fetching users.");
       }
-      const usersData = usersResult.data;
-      const enrichedUsers = await Promise.all(
-        usersData.map(async (user) => {
-          let profileData: any = {};
-          if (user.role === "admin" || user.role === "director") {
-            const tableName = user.role === "admin" ? "admins" : "directors";
-            const { data } = await supabase
-              .from(tableName)
-              .select(`full_name, healthcare_facilities(name)`)
-              .eq("user_id", user.user_id)
-              .single();
-            profileData = {
-              full_name: data?.full_name,
-              healthcare_facility: (data?.healthcare_facilities as any)?.name,
-            };
-          } else {
-            const tableName = user.role === "patient" ? "patients" : "doctors";
-            const { data } = await supabase
-              .from(tableName)
-              .select("full_name, active_status")
-              .eq("user_id", user.user_id)
-              .single();
-            profileData = data || {};
-          }
-          return {
-            ...user,
-            ...profileData,
-            active_status: profileData.active_status ?? true,
-          };
-        })
-      );
+      
+      // The old enrichment logic is now in the server action, so we can simplify this.
+      // However, to get facility names, we still need a small enrichment step here.
+       const enrichedUsers = await Promise.all(
+         usersResult.data.map(async (user) => {
+           let facilityName: string | undefined = "N/A";
+           if (user.role === "admin" || user.role === "director") {
+             const tableName = user.role === "admin" ? "admins" : "directors";
+             const { data } = await supabase
+               .from(tableName)
+               .select(`healthcare_facilities(name)`)
+               .eq("user_id", user.user_id)
+               .single();
+              facilityName = (data?.healthcare_facilities as any)?.name ?? "N/A";
+           }
+           return { ...user, healthcare_facility: facilityName };
+         })
+       );
       setUsers(enrichedUsers);
-    } catch (error) {
+
+      } catch (error) {
       console.error("Error fetching users:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load users",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to load users", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchStatsData = async () => {
+
+  const fetchStatsData = async (pid: number) => {
     try {
-      const result = await fetchUserStats();
+      // Pass the provinceId to the server action
+      const result = await fetchUserStats(pid);
       if (result.success && result.data) {
         setStats(result.data);
       } else {
@@ -487,17 +364,8 @@ export function SuperadminDashboard() {
   };
 
   const handleCreateAdmin = async () => {
-    if (
-      !adminForm.fullName ||
-      !adminForm.email ||
-      !adminForm.password ||
-      !adminForm.facilityId
-    ) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
+    if (!adminForm.fullName || !adminForm.email || !adminForm.password || !adminForm.facilityId) {
+      toast({ title: "Error", description: "Please fill in all fields", variant: "destructive" });
       return;
     }
     setLoading(true);
@@ -507,38 +375,27 @@ export function SuperadminDashboard() {
         toast({ title: "Success", description: result.message });
         setAdminForm({ fullName: "", email: "", password: "", facilityId: "" });
         setShowCreateAdmin(false);
-        fetchUsers();
-        fetchStatsData();
+
+        // FIX: Pass the provinceId when refreshing data
+        if (provinceId) {
+          fetchUsers(provinceId);
+          fetchStatsData(provinceId);
+        }
+
       } else {
-        toast({
-          title: "Error",
-          description: result.message,
-          variant: "destructive",
-        });
+        toast({ title: "Error", description: result.message, variant: "destructive" });
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create admin",
-        variant: "destructive",
-      });
+      console.error("Error creating admin:", error);
+      toast({ title: "Error", description: error.message || "Failed to create admin", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateDirector = async () => {
-    if (
-      !directorForm.fullName ||
-      !directorForm.email ||
-      !directorForm.password ||
-      !directorForm.facilityId
-    ) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
+   const handleCreateDirector = async () => {
+    if (!directorForm.fullName || !directorForm.email || !directorForm.password || !directorForm.facilityId) {
+      toast({ title: "Error", description: "Please fill in all fields", variant: "destructive" });
       return;
     }
     setLoading(true);
@@ -546,115 +403,64 @@ export function SuperadminDashboard() {
       const result = await createDirectorUser(directorForm);
       if (result.success) {
         toast({ title: "Success", description: result.message });
-        setDirectorForm({
-          fullName: "",
-          email: "",
-          password: "",
-          facilityId: "",
-        });
+        setDirectorForm({ fullName: "", email: "", password: "", facilityId: "" });
         setShowCreateDirector(false);
-        fetchUsers();
-        fetchStatsData();
+
+        // FIX: Pass the provinceId when refreshing data
+        if (provinceId) {
+          fetchUsers(provinceId);
+          fetchStatsData(provinceId);
+        }
+
       } else {
-        toast({
-          title: "Error",
-          description: result.message,
-          variant: "destructive",
-        });
+        toast({ title: "Error", description: result.message, variant: "destructive" });
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create director",
-        variant: "destructive",
-      });
+      console.error("Error creating director:", error);
+      toast({ title: "Error", description: error.message || "Failed to create director", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateRegionalAdmin = async () => {
-    // ✨ VALIDATION: Explicitly list required fields, excluding streetAddress
-    const requiredFields = {
-      fullName: "Full Name",
-      email: "Email",
-      password: "Password",
-      nationalId: "National ID",
-      dateOfBirth: "Date of Birth",
-      gender: "Gender",
-      bloodType: "Blood Type",
-      phoneNumber: "Phone Number",
-      provinceId: "Province",
-      regencyId: "Regency",
-      districtId: "District",
-    };
-
-    // Check each required field
-    for (const [key, name] of Object.entries(requiredFields)) {
-      if (!regionalAdminForm[key as keyof typeof regionalAdminForm]) {
-        toast({
-          title: "Error",
-          description: `${name} is a required field.`,
-          variant: "destructive",
-        });
-        return; // Stop the submission if a required field is empty
-      }
-    }
-
-    setLoading(true);
-    try {
-      // The server action will handle the optional streetAddress correctly
-      const result = await createRegionalAdminUser(regionalAdminForm);
-      if (result.success) {
-        toast({ title: "Success", description: result.message });
-        setRegionalAdminForm(initialRegionalAdminForm); // Reset form
-        setShowCreateRegionalAdmin(false);
-        fetchUsers();
-        fetchStatsData();
-      } else {
-        toast({
-          title: "Error",
-          description: result.message,
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      console.error("Error creating regional admin:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create regional admin",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleToggleUserStatus = async (
-    userId: string,
-    currentStatus: boolean
-  ) => {
+  const handleToggleUserStatus = async (userId: string, currentStatus: boolean) => {
     try {
       const user = users.find((u) => u.user_id === userId);
-      if (!user || user.role === "patient") return;
+      if (!user) return;
+
+      // Determine the correct table based on the user's role
+      const roleToTableMap: { [key: string]: string | undefined } = {
+        doctor: 'doctors',
+        admin: 'admins',
+        director: 'directors',
+      };
+      
+      const tableName = roleToTableMap[user.role];
+
+      // Only proceed if the role is one that can be toggled
+      if (!tableName) {
+        toast({ title: "Info", description: `Status cannot be changed for role: ${user.role}` });
+        return;
+      }
+      
+      // Update the active_status in the correct table
       const { error } = await supabase
-        .from("doctors")
+        .from(tableName)
         .update({ active_status: !currentStatus })
         .eq("user_id", userId);
+
       if (error) throw error;
-      toast({
-        title: "Success",
-        description: `User ${
-          !currentStatus ? "activated" : "deactivated"
-        } successfully`,
-      });
-      fetchUsers();
+
+      toast({ title: "Success", description: `User ${!currentStatus ? "activated" : "deactivated"} successfully` });
+      
+      // FIX: Pass the provinceId to refresh the user list
+      if (provinceId) {
+        fetchUsers(provinceId);
+      }
+      
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to update user status",
-        variant: "destructive",
-      });
+      console.error("Error updating user status:", error);
+      toast({ title: "Error", description: "Failed to update user status", variant: "destructive" });
     }
   };
 
@@ -694,76 +500,51 @@ export function SuperadminDashboard() {
   return (
     <SidebarProvider>
       <AppSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+
       <SidebarInset>
         <Header pageTitle={pageTitles[activeTab] || "Dashboard"} />
         <main className="flex-1 space-y-8 p-6 bg-slate-50/50">
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
-          >
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsContent value="overview" className="space-y-6">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <Card className="border-l-4 border-l-[#3FB6F6]">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Total Users
-                    </CardTitle>
+                    <CardTitle className="text-sm font-medium">Total Users</CardTitle>
                     <Users className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{stats.totalUsers}</div>
-                    <p className="text-xs text-muted-foreground">
-                      +{stats.recentRegistrations} from last week
-                    </p>
+                    <p className="text-xs text-muted-foreground">+{stats.recentRegistrations} from last week</p>
                   </CardContent>
                 </Card>
                 <Card className="border-l-4 border-l-[#34D399]">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Healthcare Facilities
-                    </CardTitle>
+                    <CardTitle className="text-sm font-medium">Healthcare Facilities</CardTitle>
                     <Building2 className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
-                      {stats.totalFacilities}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Active facilities
-                    </p>
+                    <div className="text-2xl font-bold">{stats.totalFacilities}</div>
+                    <p className="text-xs text-muted-foreground">Active facilities</p>
                   </CardContent>
                 </Card>
                 <Card className="border-l-4 border-l-purple-500">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Medical Staff
-                    </CardTitle>
+                    <CardTitle className="text-sm font-medium">Medical Staff</CardTitle>
                     <Activity className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
-                      {stats.totalDoctors + stats.totalAdmins}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Doctors and admins
-                    </p>
+                    <div className="text-2xl font-bold">{stats.totalDoctors + stats.totalAdmins}</div>
+                    <p className="text-xs text-muted-foreground">Doctors and admins</p>
                   </CardContent>
                 </Card>
                 <Card className="border-l-4 border-l-orange-500">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Recent Activity
-                    </CardTitle>
+                    <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
-                      {stats.recentRegistrations}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      New registrations this week
-                    </p>
+                    <div className="text-2xl font-bold">{stats.recentRegistrations}</div>
+                    <p className="text-xs text-muted-foreground">New registrations this week</p>
                   </CardContent>
                 </Card>
               </div>
@@ -778,18 +559,14 @@ export function SuperadminDashboard() {
                         <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                         <span>Patients</span>
                       </div>
-                      <span className="font-semibold">
-                        {stats.totalPatients}
-                      </span>
+                      <span className="font-semibold">{stats.totalPatients}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                         <span>Doctors</span>
                       </div>
-                      <span className="font-semibold">
-                        {stats.totalDoctors}
-                      </span>
+                      <span className="font-semibold">{stats.totalDoctors}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
@@ -803,9 +580,7 @@ export function SuperadminDashboard() {
                         <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
                         <span>Directors</span>
                       </div>
-                      <span className="font-semibold">
-                        {stats.totalDirectors}
-                      </span>
+                      <span className="font-semibold">{stats.totalDirectors}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -814,11 +589,7 @@ export function SuperadminDashboard() {
                     <CardTitle>Quick Actions</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <Button
-                      onClick={() => setShowCreateAdmin(true)}
-                      className="w-full justify-start"
-                      variant="outline"
-                    >
+                    <Button onClick={() => setShowCreateAdmin(true)} className="w-full justify-start" variant="outline">
                       <UserPlus className="mr-2 h-4 w-4" />
                       Create Admin Account
                     </Button>
@@ -830,11 +601,7 @@ export function SuperadminDashboard() {
                       <Crown className="mr-2 h-4 w-4" />
                       Create Director Account
                     </Button>
-                    <Button
-                      onClick={() => setActiveTab("users")}
-                      className="w-full justify-start"
-                      variant="outline"
-                    >
+                    <Button onClick={() => setActiveTab("users")} className="w-full justify-start" variant="outline">
                       <Users className="mr-2 h-4 w-4" />
                       Manage Users
                     </Button>
@@ -895,34 +662,24 @@ export function SuperadminDashboard() {
                         ) : (
                           filteredUsers.map((user) => (
                             <TableRow key={user.user_id}>
-                              <TableCell className="font-medium">
-                                {user.full_name || "N/A"}
-                              </TableCell>
+                              <TableCell className="font-medium">{user.full_name || "N/A"}</TableCell>
                               <TableCell>{user.email}</TableCell>
                               <TableCell>
                                 <Badge className={getRoleColor(user.role)}>
-                                  {user.role.charAt(0).toUpperCase() +
-                                    user.role.slice(1)}
+                                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                                 </Badge>
                               </TableCell>
-                              <TableCell>
-                                {user.healthcare_facility || "N/A"}
-                              </TableCell>
+                              <TableCell>{user.healthcare_facility || "N/A"}</TableCell>
                               <TableCell>
                                 <Switch
                                   checked={user.active_status ?? true}
                                   onCheckedChange={() =>
-                                    handleToggleUserStatus(
-                                      user.user_id,
-                                      user.active_status ?? true
-                                    )
+                                    handleToggleUserStatus(user.user_id, user.active_status ?? true)
                                   }
                                   disabled={user.role === "patient"}
                                 />
                               </TableCell>
-                              <TableCell>
-                                {getVerificationStatus(user)}
-                              </TableCell>
+                              <TableCell>{getVerificationStatus(user)}</TableCell>
                               <TableCell>
                                 <div className="flex gap-2">
                                   <Button variant="ghost" size="sm">
@@ -998,56 +755,50 @@ export function SuperadminDashboard() {
 
             <TabsContent value="create" className="space-y-6">
               <h2 className="text-2xl font-bold">Create New Accounts</h2>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <Card
-                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  className="cursor-pointer hover:shadow-lg transition-shadow border-l-4 border-l-[#3FB6F6]"
                   onClick={() => setShowCreateAdmin(true)}
                 >
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Shield className="h-5 w-5 text-[#3FB6F6]" />
-                      Create Admin
+                      Create Admin Account
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-gray-600">
-                      Create a new admin user for a specific healthcare
-                      facility.
+                    <p className="text-gray-600">
+                      Create a new admin user for a healthcare facility. They will receive an email verification link.
                     </p>
+                    <div className="mt-4">
+                      <Button className="w-full bg-gradient-to-r from-[#3FB6F6] to-[#34D399]">
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Create Admin
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
                 <Card
-                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  className="cursor-pointer hover:shadow-lg transition-shadow border-l-4 border-l-[#34D399]"
                   onClick={() => setShowCreateDirector(true)}
                 >
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Crown className="h-5 w-5 text-[#34D399]" />
-                      Create Director
+                      Create Director Account
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-gray-600">
-                      Create a new director user for a specific healthcare
-                      facility.
+                    <p className="text-gray-600">
+                      Create a new director user for a healthcare facility. They will receive an email verification
+                      link.
                     </p>
-                  </CardContent>
-                </Card>
-                <Card
-                  className="cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => setShowCreateRegionalAdmin(true)}
-                >
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <ShieldCheck className="h-5 w-5 text-cyan-500" />
-                      Create Regional Admin
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600">
-                      Create a regional admin with broader oversight
-                      capabilities.
-                    </p>
+                    <div className="mt-4">
+                      <Button className="w-full bg-gradient-to-r from-[#34D399] to-[#3FB6F6]">
+                        <Crown className="mr-2 h-4 w-4" />
+                        Create Director
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -1064,25 +815,17 @@ export function SuperadminDashboard() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <span>This Week</span>
-                        <span className="font-semibold">
-                          {stats.recentRegistrations} new users
-                        </span>
+                        <span className="font-semibold">{stats.recentRegistrations} new users</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span>Total Active</span>
-                        <span className="font-semibold">
-                          {stats.totalUsers} users
-                        </span>
+                        <span className="font-semibold">{stats.totalUsers} users</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span>Verification Rate</span>
                         <span className="font-semibold">
                           {stats.totalUsers > 0
-                            ? Math.round(
-                                ((stats.totalUsers - stats.unverifiedUsers) /
-                                  stats.totalUsers) *
-                                  100
-                              )
+                            ? Math.round(((stats.totalUsers - stats.unverifiedUsers) / stats.totalUsers) * 100)
                             : 0}
                           %
                         </span>
@@ -1098,15 +841,11 @@ export function SuperadminDashboard() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <span>Active Facilities</span>
-                        <span className="font-semibold text-green-600">
-                          {stats.totalFacilities}
-                        </span>
+                        <span className="font-semibold text-green-600">{stats.totalFacilities}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span>Medical Staff</span>
-                        <span className="font-semibold text-blue-600">
-                          {stats.totalDoctors + stats.totalAdmins}
-                        </span>
+                        <span className="font-semibold text-blue-600">{stats.totalDoctors + stats.totalAdmins}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span>System Status</span>
@@ -1120,13 +859,12 @@ export function SuperadminDashboard() {
                 </Card>
               </div>
             </TabsContent>
-
+            
             <TabsContent value="settings">
-              <h2 className="text-2xl font-bold">Settings</h2>
-              <p className="text-gray-500">
-                System settings will be available here in a future update.
-              </p>
+                <h2 className="text-2xl font-bold">Settings</h2>
+                 <p className="text-gray-500">System settings will be available here in a future update.</p>
             </TabsContent>
+            
           </Tabs>
         </main>
         <Footer />
@@ -1141,8 +879,7 @@ export function SuperadminDashboard() {
               Create Admin Account
             </DialogTitle>
             <DialogDescription>
-              Create a new admin user. They will receive an email verification
-              link before they can sign in.
+              Create a new admin user. They will receive an email verification link before they can sign in.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1152,9 +889,7 @@ export function SuperadminDashboard() {
                 id="adminFullName"
                 placeholder="Enter full name"
                 value={adminForm.fullName}
-                onChange={(e) =>
-                  setAdminForm({ ...adminForm, fullName: e.target.value })
-                }
+                onChange={(e) => setAdminForm({ ...adminForm, fullName: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -1164,9 +899,7 @@ export function SuperadminDashboard() {
                 type="email"
                 placeholder="Enter email address"
                 value={adminForm.email}
-                onChange={(e) =>
-                  setAdminForm({ ...adminForm, email: e.target.value })
-                }
+                onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -1177,9 +910,7 @@ export function SuperadminDashboard() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter password"
                   value={adminForm.password}
-                  onChange={(e) =>
-                    setAdminForm({ ...adminForm, password: e.target.value })
-                  }
+                  onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
                 />
                 <Button
                   type="button"
@@ -1188,11 +919,7 @@ export function SuperadminDashboard() {
                   className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
@@ -1200,19 +927,14 @@ export function SuperadminDashboard() {
               <Label htmlFor="adminFacility">Healthcare Facility</Label>
               <Select
                 value={adminForm.facilityId}
-                onValueChange={(value) =>
-                  setAdminForm({ ...adminForm, facilityId: value })
-                }
+                onValueChange={(value) => setAdminForm({ ...adminForm, facilityId: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select healthcare facility" />
                 </SelectTrigger>
                 <SelectContent>
                   {facilities.map((facility) => (
-                    <SelectItem
-                      key={facility.healthcare_facility_id}
-                      value={facility.healthcare_facility_id}
-                    >
+                    <SelectItem key={facility.healthcare_facility_id} value={facility.healthcare_facility_id}>
                       {facility.name}
                     </SelectItem>
                   ))}
@@ -1244,8 +966,7 @@ export function SuperadminDashboard() {
               Create Director Account
             </DialogTitle>
             <DialogDescription>
-              Create a new director user. They will receive an email
-              verification link before they can sign in.
+              Create a new director user. They will receive an email verification link before they can sign in.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1255,9 +976,7 @@ export function SuperadminDashboard() {
                 id="directorFullName"
                 placeholder="Enter full name"
                 value={directorForm.fullName}
-                onChange={(e) =>
-                  setDirectorForm({ ...directorForm, fullName: e.target.value })
-                }
+                onChange={(e) => setDirectorForm({ ...directorForm, fullName: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -1267,9 +986,7 @@ export function SuperadminDashboard() {
                 type="email"
                 placeholder="Enter email address"
                 value={directorForm.email}
-                onChange={(e) =>
-                  setDirectorForm({ ...directorForm, email: e.target.value })
-                }
+                onChange={(e) => setDirectorForm({ ...directorForm, email: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -1280,12 +997,7 @@ export function SuperadminDashboard() {
                   type={showDirectorPassword ? "text" : "password"}
                   placeholder="Enter password"
                   value={directorForm.password}
-                  onChange={(e) =>
-                    setDirectorForm({
-                      ...directorForm,
-                      password: e.target.value,
-                    })
-                  }
+                  onChange={(e) => setDirectorForm({ ...directorForm, password: e.target.value })}
                 />
                 <Button
                   type="button"
@@ -1294,11 +1006,7 @@ export function SuperadminDashboard() {
                   className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowDirectorPassword(!showDirectorPassword)}
                 >
-                  {showDirectorPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showDirectorPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
@@ -1306,19 +1014,14 @@ export function SuperadminDashboard() {
               <Label htmlFor="directorFacility">Healthcare Facility</Label>
               <Select
                 value={directorForm.facilityId}
-                onValueChange={(value) =>
-                  setDirectorForm({ ...directorForm, facilityId: value })
-                }
+                onValueChange={(value) => setDirectorForm({ ...directorForm, facilityId: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select healthcare facility" />
                 </SelectTrigger>
                 <SelectContent>
                   {facilities.map((facility) => (
-                    <SelectItem
-                      key={facility.healthcare_facility_id}
-                      value={facility.healthcare_facility_id}
-                    >
+                    <SelectItem key={facility.healthcare_facility_id} value={facility.healthcare_facility_id}>
                       {facility.name}
                     </SelectItem>
                   ))}
@@ -1327,10 +1030,7 @@ export function SuperadminDashboard() {
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowCreateDirector(false)}
-            >
+            <Button variant="outline" onClick={() => setShowCreateDirector(false)}>
               Cancel
             </Button>
             <Button
@@ -1339,296 +1039,6 @@ export function SuperadminDashboard() {
               className="bg-gradient-to-r from-[#3FB6F6] to-[#34D399]"
             >
               {loading ? "Creating..." : "Create Director"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create Regional Admin Modal */}
-      <Dialog
-        open={showCreateRegionalAdmin}
-        onOpenChange={setShowCreateRegionalAdmin}
-      >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5" />
-              Create Regional Admin Account
-            </DialogTitle>
-            <DialogDescription>
-              Fill in the details to create a new regional admin. All fields are
-              required.
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* 👇 THIS LINE IS UPDATED for better padding */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4 max-h-[60vh] overflow-y-auto px-1">
-            {/* Column 1 */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="ra_fullName">Full Name</Label>
-                <Input
-                  id="ra_fullName"
-                  placeholder="Enter full name"
-                  value={regionalAdminForm.fullName}
-                  onChange={(e) =>
-                    setRegionalAdminForm((f) => ({
-                      ...f,
-                      fullName: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ra_email">Email</Label>
-                <Input
-                  id="ra_email"
-                  type="email"
-                  placeholder="Enter email address"
-                  value={regionalAdminForm.email}
-                  onChange={(e) =>
-                    setRegionalAdminForm((f) => ({
-                      ...f,
-                      email: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ra_password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="ra_password"
-                    type={showRegionalAdminPassword ? "text" : "password"}
-                    placeholder="Enter password"
-                    value={regionalAdminForm.password}
-                    onChange={(e) =>
-                      setRegionalAdminForm((f) => ({
-                        ...f,
-                        password: e.target.value,
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() =>
-                      setShowRegionalAdminPassword(!showRegionalAdminPassword)
-                    }
-                  >
-                    {showRegionalAdminPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ra_nationalId">National ID</Label>
-                <Input
-                  id="ra_nationalId"
-                  placeholder="e.g., 340xxxxxxxxxxxxx"
-                  value={regionalAdminForm.nationalId}
-                  onChange={(e) =>
-                    setRegionalAdminForm((f) => ({
-                      ...f,
-                      nationalId: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ra_dob">Date of Birth</Label>
-                <Input
-                  id="ra_dob"
-                  type="date"
-                  value={regionalAdminForm.dateOfBirth}
-                  onChange={(e) =>
-                    setRegionalAdminForm((f) => ({
-                      ...f,
-                      dateOfBirth: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ra_gender">Gender</Label>
-                <Select
-                  value={regionalAdminForm.gender}
-                  onValueChange={(v) =>
-                    setRegionalAdminForm((f) => ({ ...f, gender: v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Male">Male</SelectItem>
-                    <SelectItem value="Female">Female</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Column 2 */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="ra_bloodType">Blood Type</Label>
-                <Select
-                  value={regionalAdminForm.bloodType}
-                  onValueChange={(v) =>
-                    setRegionalAdminForm((f) => ({ ...f, bloodType: v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select blood type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="A+">A+</SelectItem>
-                    <SelectItem value="A-">A-</SelectItem>
-                    <SelectItem value="B+">B+</SelectItem>
-                    <SelectItem value="B-">B-</SelectItem>
-                    <SelectItem value="AB+">AB+</SelectItem>
-                    <SelectItem value="AB-">AB-</SelectItem>
-                    <SelectItem value="O+">O+</SelectItem>
-                    <SelectItem value="O-">O-</SelectItem>
-                    <SelectItem value="unknown">I don't know</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ra_phone">Phone Number</Label>
-                <Input
-                  id="ra_phone"
-                  placeholder="e.g., 08123456789"
-                  value={regionalAdminForm.phoneNumber}
-                  onChange={(e) =>
-                    setRegionalAdminForm((f) => ({
-                      ...f,
-                      phoneNumber: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ra_province">Province</Label>
-                <Select
-                  value={regionalAdminForm.provinceId}
-                  onValueChange={(v) =>
-                    setRegionalAdminForm((f) => ({ ...f, provinceId: v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select province" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {provinces.map((p) => (
-                      <SelectItem
-                        key={p.province_id}
-                        value={String(p.province_id)}
-                      >
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ra_regency">Regency</Label>
-                <Select
-                  value={regionalAdminForm.regencyId}
-                  onValueChange={(v) =>
-                    setRegionalAdminForm((f) => ({ ...f, regencyId: v }))
-                  }
-                  disabled={
-                    !regionalAdminForm.provinceId || addressLoading.regencies
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        addressLoading.regencies
-                          ? "Loading..."
-                          : "Select regency"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {regencies.map((r) => (
-                      <SelectItem
-                        key={r.regency_id}
-                        value={String(r.regency_id)}
-                      >
-                        {r.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ra_district">District</Label>
-                <Select
-                  value={regionalAdminForm.districtId}
-                  onValueChange={(v) =>
-                    setRegionalAdminForm((f) => ({ ...f, districtId: v }))
-                  }
-                  disabled={
-                    !regionalAdminForm.regencyId || addressLoading.districts
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        addressLoading.districts
-                          ? "Loading..."
-                          : "Select district"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {districts.map((d) => (
-                      <SelectItem
-                        key={d.district_id}
-                        value={String(d.district_id)}
-                      >
-                        {d.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ra_street">Street Address</Label>
-                <Textarea
-                  id="ra_street"
-                  placeholder="Street name, building, etc."
-                  value={regionalAdminForm.streetAddress}
-                  onChange={(e) =>
-                    setRegionalAdminForm((f) => ({
-                      ...f,
-                      streetAddress: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowCreateRegionalAdmin(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateRegionalAdmin}
-              disabled={loading}
-              className="bg-gradient-to-r from-cyan-500 to-sky-500"
-            >
-              {loading ? "Creating..." : "Create Regional Admin"}
             </Button>
           </DialogFooter>
         </DialogContent>
