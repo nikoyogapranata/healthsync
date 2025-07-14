@@ -246,6 +246,8 @@ export default function UserProfilePage() {
       let userProfileData = null
       let userRole = null
       const tablesToTry = [
+        { table: 'superadmins', role: 'Superadmin' },
+        { table: 'regional-admins', role: 'Regional Admin' },
         { table: 'patients', role: 'Patient' },
         { table: 'doctors', role: 'Doctor' },
         { table: 'admins', role: 'Admin' },
@@ -309,6 +311,12 @@ export default function UserProfilePage() {
   useEffect(() => {
     if (user?.userRole) {
       switch (user.userRole.toLowerCase()) {
+        case 'regional_admin':
+          setDashboardPath('/regional-admin-dashboard'); // Or your actual doctor dashboard path
+          break;
+        case 'superadmin':
+          setDashboardPath('/superadmin-dashboard'); // Or your actual doctor dashboard path
+          break;
         case 'doctor':
           setDashboardPath('/doctor-dashboard'); // Or your actual doctor dashboard path
           break;

@@ -1,6 +1,7 @@
 import { supabase } from "./supabase"
 
-export type UserRole = "superadmin" | "admin" | "director" | "doctor" | "patient"
+export type UserRole = "superadmin"  | "regional_admin" | "admin" | "director" | "doctor" | "patient";
+
 
 export interface User {
   id: string
@@ -52,6 +53,8 @@ export function getRedirectPath(role: UserRole): string {
   switch (role) {
     case "superadmin":
       return "/superadmin-dashboard"
+    case "superadmin":
+      return "/regional-admin-dashboard"
     case "admin":
       return "/admin-dashboard"
     case "director":

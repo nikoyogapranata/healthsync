@@ -10,7 +10,7 @@ import { Loader2 } from "lucide-react"
 import { toast } from "./ui/use-toast"
 
 // Define the roles your system uses
-type UserRole = "superadmin" | "admin" | "director" | "doctor" | "patient";
+type UserRole = "superadmin"  | "regional_admin" | "admin" | "director" | "doctor" | "patient";
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -56,6 +56,8 @@ export function AuthGuard({ children, allowedRoles, fallbackPath = "/login" }: A
         
         // Redirect logic based on their actual role
         switch (userProfile.role as UserRole) {
+          case "regional_admin": router.push("/regional-admin-dashboard"); break;
+          case "superadmin": router.push("/superadmin-dashboard"); break;
           case "patient": router.push("/dashboard"); break;
           case "doctor": router.push("/doctor-dashboard"); break;
           case "admin": router.push("/admin-dashboard"); break;
