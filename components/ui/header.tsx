@@ -118,8 +118,8 @@ export function Header({ pageTitle }: HeaderProps) {
               {loading ? (
                 <Skeleton className="size-9 rounded-full" />
               ) : (
-                <div className="flex items-center justify-center size-8 rounded-full bg-gradient-to-br from-[#3FB6F6] to-[#34D399] text-white font-semibold text-sm">
-                  {userData?.initials || '...'}
+                <div className="flex items-center justify-center size-8 select-none rounded-full bg-gradient-to-br from-[#3FB6F6] to-[#34D399] font-semibold leading-none text-white">
+                  {userData?.initials?.trim() || '...'}
                 </div>
               )}
             </Button>

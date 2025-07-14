@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,20 +13,39 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff, Mail } from "lucide-react"
 import { registerPatient } from "@/app/actions/patient-registration"
+import { createClient } from "@/utils/supabase/client"
+
+// --- Interfaces for location data ---
+interface Province {
+  province_id: number
+  name: string
+}
+interface Regency {
+  regency_id: number
+  name: string
+}
+interface District {
+  district_id: number
+  name: string
+}
 
 export function RegistrationForm() {
   const router = useRouter()
+  const supabase = createClient()
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     password: "",
     confirmPassword: "",
-    national_id: "", // Added national_id
+    national_id: "",
     phoneNumber: "",
     dateOfBirth: "",
     gender: "",
     bloodType: "",
-    address: "",
+    province_id: "",
+    regency_id: "",
+    district_id: "",
+    street_address: "",
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -34,6 +53,78 @@ export function RegistrationForm() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [showVerificationMessage, setShowVerificationMessage] = useState(false)
+
+  // --- State for address dropdowns ---
+  const [provinces, setProvinces] = useState<Province[]>([])
+  const [regencies, setRegencies] = useState<Regency[]>([])
+  const [districts, setDistricts] = useState<District[]>([])
+  const [isProvincesLoading, setIsProvincesLoading] = useState(true)
+  const [isRegenciesLoading, setIsRegenciesLoading] = useState(false)
+  const [isDistrictsLoading, setIsDistrictsLoading] = useState(false)
+
+  // --- Fetch initial provinces ---
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      setIsProvincesLoading(true)
+      const { data, error } = await supabase.from("provinces").select("*").order("name")
+      if (data) {
+        setProvinces(data)
+      } else {
+        console.error("Error fetching provinces:", error)
+      }
+      setIsProvincesLoading(false)
+    }
+    fetchProvinces()
+  }, [supabase])
+
+  // --- Fetch regencies when province changes ---
+  useEffect(() => {
+    const fetchRegencies = async () => {
+      if (!formData.province_id) return
+      setIsRegenciesLoading(true)
+      setRegencies([])
+      setDistricts([])
+      setFormData((prev) => ({ ...prev, regency_id: "", district_id: "" }))
+
+      const { data, error } = await supabase
+        .from("regencies")
+        .select("*")
+        .eq("province_id", formData.province_id)
+        .order("name")
+
+      if (data) {
+        setRegencies(data)
+      } else {
+        console.error("Error fetching regencies:", error)
+      }
+      setIsRegenciesLoading(false)
+    }
+    fetchRegencies()
+  }, [formData.province_id, supabase])
+
+  // --- Fetch districts when regency changes ---
+  useEffect(() => {
+    const fetchDistricts = async () => {
+      if (!formData.regency_id) return
+      setIsDistrictsLoading(true)
+      setDistricts([])
+      setFormData((prev) => ({ ...prev, district_id: "" }))
+
+      const { data, error } = await supabase
+        .from("districts")
+        .select("*")
+        .eq("regency_id", formData.regency_id)
+        .order("name")
+
+      if (data) {
+        setDistricts(data)
+      } else {
+        console.error("Error fetching districts:", error)
+      }
+      setIsDistrictsLoading(false)
+    }
+    fetchDistricts()
+  }, [formData.regency_id, supabase])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -100,12 +191,15 @@ export function RegistrationForm() {
         fullName: formData.fullName,
         email: formData.email,
         password: formData.password,
-        national_id: formData.national_id, // Pass national_id to server action
+        national_id: formData.national_id,
         phoneNumber: formData.phoneNumber,
         dateOfBirth: formData.dateOfBirth,
         gender: formData.gender,
         bloodType: formData.bloodType,
-        address: formData.address,
+        province_id: formData.province_id,
+        regency_id: formData.regency_id,
+        district_id: formData.district_id,
+        street_address: formData.street_address,
       })
 
       if (!result.success) {
@@ -123,12 +217,15 @@ export function RegistrationForm() {
         email: "",
         password: "",
         confirmPassword: "",
-        national_id: "", // Clear national_id
+        national_id: "",
         phoneNumber: "",
         dateOfBirth: "",
         gender: "",
         bloodType: "",
-        address: "",
+        province_id: "",
+        regency_id: "",
+        district_id: "",
+        street_address: "",
       })
     } catch (err: any) {
       console.error("Registration error:", err)
@@ -180,7 +277,7 @@ export function RegistrationForm() {
         <CardDescription>Create your account to access our healthcare services</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -296,7 +393,7 @@ export function RegistrationForm() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="gender">Gender</Label>
-              <Select onValueChange={(value) => handleSelectChange("gender", value)}>
+              <Select onValueChange={(value) => handleSelectChange("gender", value)} value={formData.gender}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
@@ -311,7 +408,7 @@ export function RegistrationForm() {
             {/* --- Row 5: Blood Type --- */}
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="bloodType">Blood Type</Label>
-              <Select onValueChange={(value) => handleSelectChange("bloodType", value)}>
+              <Select onValueChange={(value) => handleSelectChange("bloodType", value)} value={formData.bloodType}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select blood type (optional)" />
                 </SelectTrigger>
@@ -330,17 +427,86 @@ export function RegistrationForm() {
             </div>
           </div>
 
-          {/* --- Full-width Address --- */}
-          <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
-            <Textarea
-              id="address"
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              placeholder="Your full address (optional)"
-              rows={2}
-            />
+          {/* --- Section for Address --- */}
+          <div className="space-y-4 pt-4 border-t">
+            <Label className="text-base font-semibold">Address</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Province Dropdown */}
+              <div className="space-y-2">
+                <Label htmlFor="province_id">Province</Label>
+                <Select
+                  onValueChange={(value) => handleSelectChange("province_id", value)}
+                  value={formData.province_id}
+                  disabled={isProvincesLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={isProvincesLoading ? "Loading..." : "Select Province"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {provinces.map((province) => (
+                      <SelectItem key={province.province_id} value={String(province.province_id)}>
+                        {province.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Regency Dropdown */}
+              <div className="space-y-2">
+                <Label htmlFor="regency_id">Regency / City</Label>
+                <Select
+                  onValueChange={(value) => handleSelectChange("regency_id", value)}
+                  value={formData.regency_id}
+                  disabled={isRegenciesLoading || !formData.province_id}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={isRegenciesLoading ? "Loading..." : "Select Regency"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {regencies.map((regency) => (
+                      <SelectItem key={regency.regency_id} value={String(regency.regency_id)}>
+                        {regency.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* District Dropdown */}
+              <div className="space-y-2">
+                <Label htmlFor="district_id">District</Label>
+                <Select
+                  onValueChange={(value) => handleSelectChange("district_id", value)}
+                  value={formData.district_id}
+                  disabled={isDistrictsLoading || !formData.regency_id}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={isDistrictsLoading ? "Loading..." : "Select District"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {districts.map((district) => (
+                      <SelectItem key={district.district_id} value={String(district.district_id)}>
+                        {district.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Street Address Input */}
+            <div className="space-y-2">
+              <Label htmlFor="street_address">Street Address</Label>
+              <Textarea
+                id="street_address"
+                name="street_address"
+                value={formData.street_address}
+                onChange={handleChange}
+                placeholder="e.g., Jl. Merdeka No. 123, RT 01/RW 02 (optional)"
+                rows={2}
+              />
+            </div>
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
@@ -348,7 +514,7 @@ export function RegistrationForm() {
           </Button>
 
           <div className="text-center text-sm text-gray-600">
-            Already have an account?{' '}
+            Already have an account?{" "}
             <Button
               type="button"
               variant="link"

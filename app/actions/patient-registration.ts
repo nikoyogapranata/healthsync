@@ -13,16 +13,20 @@ const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, proces
 // Create a regular client for auth operations
 const supabaseClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
+// 1. Update the function's parameter type to match the new form data
 export async function registerPatient(formData: {
   fullName: string
   email: string
   password: string
-  national_id: string // Added national_id
+  national_id: string
   phoneNumber?: string
   dateOfBirth?: string
   gender?: string
   bloodType?: string
-  address?: string
+  province_id?: string
+  regency_id?: string
+  district_id?: string
+  street_address?: string
 }) {
   try {
     console.log("Starting patient registration...")
@@ -90,19 +94,23 @@ export async function registerPatient(formData: {
       console.error("User table error:", userError)
       // Clean up auth user if database insert fails
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-      return { success: false, message: 'Failed to create user record: ${userError.message}' }
+      return { success: false, message: `Failed to create user record: ${userError.message}` }
     }
 
-    // Step 5: Add patient details, including the new national_id
+    // 2. Update the patientData object to use the new structured address fields
     const patientData: any = {
       patient_id: crypto.randomUUID(),
       user_id: authData.user.id,
       full_name: formData.fullName,
-      national_id: formData.national_id, // Added national_id
+      national_id: formData.national_id,
       phone_number: formData.phoneNumber || null,
       gender: formData.gender || null,
       blood_type: formData.bloodType || null,
-      address: formData.address || null,
+      // 3. Convert string IDs to numbers and handle optional fields
+      province_id: formData.province_id ? parseInt(formData.province_id, 10) : null,
+      regency_id: formData.regency_id ? parseInt(formData.regency_id, 10) : null,
+      district_id: formData.district_id ? parseInt(formData.district_id, 10) : null,
+      street_address: formData.street_address || null,
     }
 
     // Only add date_of_birth if it's provided and valid
@@ -117,7 +125,7 @@ export async function registerPatient(formData: {
       // Clean up both auth user and users table entries
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       await supabaseAdmin.from("users").delete().eq("user_id", authData.user.id)
-      return { success: false, message: 'Failed to create patient profile: ${patientError.message}' }
+      return { success: false, message: `Failed to create patient profile: ${patientError.message}` }
     }
 
     console.log("Patient registration successful!")
