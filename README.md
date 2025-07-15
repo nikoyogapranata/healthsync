@@ -1,5 +1,3 @@
-# HealthSync
-
 <div align="center">
   <h1 align="center">HealthSync</h1>
   <p align="center">
