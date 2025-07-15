@@ -23,6 +23,7 @@
 * [📍 Overview](#-overview)
 * [✨ Features](#-features)
 * [🛠️ Tech Stack](#-tech-stack)
+* [🎓 Reviewer Setup (UII)](#-reviewer-setup)
 * [🚀 Local Development Setup](#-local-development-setup)
 
 ---
@@ -57,6 +58,33 @@
 * **Styling:** Tailwind CSS
 * **UI Components:** shadcn/ui
 * **Package Manager:** pnpm
+
+---
+
+## 🎓 Reviewer Setup
+
+To run and edit the project on your local machine, follow these steps.
+
+### Prerequisites
+
+Make sure you have the following installed:
+* **Node.js**: `v18.0` or newer.
+* **pnpm**: See [pnpm.io/installation](https://pnpm.io/installation) for instructions.
+
+### Installation
+
+**Install Dependencies**
+    ```sh
+    pnpm install
+    ```
+
+### Running the App
+
+* **To run the development server:**
+    ```sh
+    pnpm dev
+    ```
+    Open your browser and visit **[http://localhost:3000](http://localhost:3000)**.
 
 ---
 
