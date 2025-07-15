@@ -72,7 +72,7 @@ interface Queue {
   queue_number: string;
   patients: { full_name: string } | null;
   doctors: { full_name: string } | null;
-  department: string;
+  departments: { name: string } | null;
   queue_status: "Waiting" | "In Progress" | "Completed" | "Cancelled";
   payment_status: "Not Paid" | "Paid" | "Waived";
   created_at: string;
@@ -95,7 +95,7 @@ const QueueTable = ({
   if (queues.length === 0) {
     return (
       <TableRow>
-        <TableCell colSpan={5} className="text-center h-24">
+        <TableCell colSpan={6} className="text-center h-24">
           No queues found.
         </TableCell>
       </TableRow>
@@ -113,6 +113,7 @@ const QueueTable = ({
           <TableCell className="font-medium">{q.queue_number}</TableCell>
           <TableCell>{q.patients?.full_name ?? "—"}</TableCell>
           <TableCell>{q.doctors?.full_name ?? "—"}</TableCell>
+          <TableCell>{q.departments?.name ?? "—"}</TableCell> {/* 2. ADD THIS LINE */}
           <TableCell>
             <Badge className={getStatusColor(q.queue_status, "queue")}>
               {q.queue_status}
@@ -146,10 +147,11 @@ export function AdminQueueManagement() {
       const { data, error } = await supabase
         .from("queue")
         .select(`
-          queue_id, queue_number, department, queue_status, payment_status,
+          queue_id, queue_number, queue_status, payment_status,
           visit_type, triage_priority, created_at, called_at, completed_at,
           patients ( full_name ),
-          doctors ( full_name )
+          doctors ( full_name ),
+          departments ( name )
         `)
         .order("created_at", { ascending: false });
 
@@ -288,14 +290,15 @@ export function AdminQueueManagement() {
   };
   
   const queueMatchesSearch = (queue: Queue, term: string) => {
-    const lowerCaseTerm = term.toLowerCase();
-    if (!lowerCaseTerm) return true; // Show all if search is empty
-    return (
-      queue.patients?.full_name?.toLowerCase().includes(lowerCaseTerm) ||
-      queue.doctors?.full_name?.toLowerCase().includes(lowerCaseTerm) ||
-      queue.queue_number.toLowerCase().includes(lowerCaseTerm)
-    );
-  };
+  const lowerCaseTerm = term.toLowerCase();
+  if (!lowerCaseTerm) return true; // Show all if search is empty
+  return (
+    queue.patients?.full_name?.toLowerCase().includes(lowerCaseTerm) ||
+    queue.doctors?.full_name?.toLowerCase().includes(lowerCaseTerm) ||
+    queue.queue_number.toLowerCase().includes(lowerCaseTerm) ||
+    queue.departments?.name?.toLowerCase().includes(lowerCaseTerm) // <-- ADD THIS LINE
+  );
+};
 
   const todaysQueues = queues
     .filter(q => isToday(q.created_at))
@@ -411,6 +414,7 @@ export function AdminQueueManagement() {
                     <TableHead>Queue Number</TableHead>
                     <TableHead>Patient Name</TableHead>
                     <TableHead>Doctor Name</TableHead>
+                    <TableHead>Department</TableHead>
                     <TableHead>Queue Status</TableHead>
                     <TableHead>Payment Status</TableHead>
                   </TableRow>
@@ -461,6 +465,7 @@ export function AdminQueueManagement() {
                     <TableHead>Queue Number</TableHead>
                     <TableHead>Patient Name</TableHead>
                     <TableHead>Doctor Name</TableHead>
+                    <TableHead>Department</TableHead>
                     <TableHead>Queue Status</TableHead>
                     <TableHead>Payment Status</TableHead>
                   </TableRow>
@@ -526,7 +531,7 @@ export function AdminQueueManagement() {
                         </div>
                         <div className="flex items-center gap-2">
                             <BriefcaseMedical className="size-4" />
-                            <strong>Department:</strong> {selectedQueue.department}
+                            <strong>Department:</strong> {selectedQueue.departments?.name ?? "N/A"}
                         </div>
                         <div className="flex items-center gap-2">
                             <strong>Visit Type:</strong> {selectedQueue.visit_type ?? "—"}

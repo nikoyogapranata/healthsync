@@ -116,7 +116,7 @@ export function DashboardAdmin() {
         ] = await Promise.all([
           supabase.from("doctors").select("doctor_id, specialization, active_status"),
           // FIXED: Changed 'status' to 'queue_status'
-          supabase.from("queue").select("queue_status, department, created_at").gte('created_at', todayStart.toISOString()),
+          supabase.from("queue").select("queue_status, created_at, departments ( name )").gte('created_at', todayStart.toISOString()),
           supabase.from("queue").select("created_at").gte('created_at', sevenDaysAgo.toISOString())
         ]);
 
@@ -173,11 +173,10 @@ export function DashboardAdmin() {
         setDailyQueueVolume(Object.entries(dailyCounts).map(([name, value]) => ({ name, value })).sort((a,b) => new Date(a.name).getTime() - new Date(b.name).getTime()));
 
         const deptCounts = todaysQueues.reduce((acc, q) => {
-            const dept = q.department || "General";
+            const dept = q.departments?.name || "Unassigned"; // Access the nested name
             acc[dept] = (acc[dept] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);
-        setDepartmentData(Object.entries(deptCounts).map(([name, value]) => ({ name, value })));
 
       } catch (error: any) {
         console.error("Error fetching dashboard data:", error);

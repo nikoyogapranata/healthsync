@@ -74,7 +74,7 @@ interface Queue {
   queue_id: string;
   queue_number: string;
   patients: { full_name: string } | null;
-  department: string;
+  departments: { name: string } | null;
   queue_status: "Waiting" | "In Progress" | "Completed" | "Cancelled";
   payment_status: "Not Paid" | "Paid" | "Waived";
   created_at: string;
@@ -178,10 +178,11 @@ export function DoctorQueueManagement() {
       const { data: queueData, error: queueError } = await supabase
         .from("queue")
         .select(`
-          queue_id, queue_number, department, queue_status, payment_status,
-          visit_type, triage_priority, created_at, called_at, completed_at,
-          patients ( full_name )
-        `)
+            queue_id, queue_number, queue_status, payment_status,
+            visit_type, created_at, called_at, completed_at,
+            patients ( full_name ),
+            departments ( name )
+          `)
         .eq('doctor_id', doctorProfile.doctor_id) // Filter by doctor_id
         .order("created_at", { ascending: false });
 
@@ -437,7 +438,7 @@ const handleUpdateStatus = async (
                     <div className="grid gap-2 text-sm text-gray-700">
                         <div className="flex items-center gap-2"><UserCircle className="size-4" /><strong>Patient:</strong> {selectedQueue.patients?.full_name ?? "N/A"}</div>
                         <div className="flex items-center gap-2"><Stethoscope className="size-4" /><strong>Doctor:</strong> {doctor?.full_name ?? "N/A"}</div>
-                        <div className="flex items-center gap-2"><BriefcaseMedical className="size-4" /><strong>Department:</strong> {selectedQueue.department}</div>
+                        <div className="flex items-center gap-2"><BriefcaseMedical className="size-4" /><strong>Department:</strong> {selectedQueue.departments?.name ?? "N/A"}</div>
                         <div className="flex items-center gap-2"><strong>Visit Type:</strong> {selectedQueue.visit_type ?? "—"}</div>
                         <div className="flex items-center gap-2"><strong>Created At:</strong> {new Date(selectedQueue.created_at).toLocaleString()}</div>
                         <div className="flex items-center gap-2"><strong>Called At:</strong> {selectedQueue.called_at ? new Date(selectedQueue.called_at).toLocaleString() : "—"}</div>
