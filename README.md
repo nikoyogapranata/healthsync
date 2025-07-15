@@ -1,30 +1,18 @@
-<br/>
 <div align="center">
-  <img src="./public/illustrations/logo.png" alt="Logo" width="120" height="120">
-
   <h1 align="center">HealthSync</h1>
-
   <p align="center">
     A modern, all-in-one healthcare management platform.
     <br />
-    <a href="#-about-the-project"><strong>Explore the docs »</strong></a>
-    <br />
-    <br />
-    <a href="#">View Demo</a>
-    ·
-    <a href="#">Report Bug</a>
-    ·
-    <a href="#">Request Feature</a>
+    <a href="https://healthsync-7.vercel.app/"><strong>View Live Demo »</strong></a>
   </p>
+  <br />
 </div>
 
 <div align="center">
 
-![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
-![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
-![PNPM](https://img.shields.io/badge/pnpm-F69220?style=for-the-badge&logo=pnpm&logoColor=white)
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/iforyouyeah1627-gmailcoms-projects/v0-health-sync)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.io/)
 
 </div>
 
@@ -32,30 +20,24 @@
 
 ## 📖 Table of Contents
 
-* [📍 About The Project](#-about-the-project)
+* [📍 Overview](#-overview)
 * [✨ Features](#-features)
-* [🚀 Getting Started](#-getting-started)
-  * [Prerequisites](#-prerequisites)
-  * [Installation & Setup](#-installation--setup)
-* [🏃 Usage](#-usage)
-* [📁 Project Structure](#-project-structure)
+* [🛠️ Tech Stack](#-tech-stack)
+* [🚀 Local Development Setup](#-local-development-setup)
 * [🤝 Contributing](#-contributing)
-* [📄 License](#-license)
-* [📧 Contact](#-contact)
 
 ---
 
-## 📍 About The Project
+## 📍 Overview
 
-**HealthSync** is a comprehensive web application designed to streamline healthcare management for patients, doctors, and administrators. It serves as a centralized hub for managing appointments, patient queues, and electronic health records (EHR), all powered by a modern, scalable tech stack.
+**HealthSync** is a comprehensive web application designed to streamline healthcare management for patients, doctors, and administrators. It serves as a centralized hub for managing appointments, patient queues, and electronic health records (EHR).
 
-### Built With
+This project was initially generated using **[v0.dev](https://v0.dev)** and is automatically kept in sync with the Vercel deployment. You can continue building the UI on v0 or work on the full application logic locally.
 
-* [![Next.js][Next.js]][Next-url]
-* [![React][React.js]][React-url]
-* [![Supabase][Supabase]][Supabase-url]
-* [![TailwindCSS][TailwindCSS]][TailwindCSS-url]
-* [![TypeScript][TypeScript]][TypeScript-url]
+### Quick Links
+
+* **Live Deployment:** **[v0-health-sync.vercel.app](https://v0-health-sync.vercel.app/)**
+* **Build on v0.dev:** **[v0.dev/chat/projects/WfKQOXUkYuE](https://v0.dev/chat/projects/WfKQOXUkYuE)**
 
 ---
 
@@ -67,26 +49,35 @@
 * ✅ **Live Queue System:** Real-time queue management for admins and doctors to monitor patient flow.
 * ✅ **Electronic Health Records (EHR):** A complete system for creating, viewing, and managing patient medical records securely.
 * ✅ **Integrated AI Assistant:** A helpful chatbot to answer user queries and guide them through the platform.
-* ✅ **Comprehensive Admin Panels:** Powerful tools for managing doctors, hospital settings, user roles, and more.
-* ✅ **Responsive Design:** Fully responsive and accessible on all devices, from mobile to desktop.
 
 ---
 
-## 🚀 Getting Started
+## 🛠️ Tech Stack
 
-Follow these instructions to get a local copy up and running for development and testing.
+* **Framework:** Next.js
+* **Language:** TypeScript
+* **Backend & Database:** Supabase
+* **Styling:** Tailwind CSS
+* **UI Components:** shadcn/ui
+* **Package Manager:** pnpm
 
-### ✅ Prerequisites
+---
 
-Make sure you have the following software installed on your machine:
-* **Node.js**: `v18.0` or newer. [Download here](https://nodejs.org/).
-* **pnpm**: Follow the instructions at [pnpm.io/installation](https://pnpm.io/installation).
+## 🚀 Local Development Setup
 
-### ✅ Installation & Setup
+To run and edit the project on your local machine, follow these steps.
+
+### Prerequisites
+
+Make sure you have the following installed:
+* **Node.js**: `v18.0` or newer.
+* **pnpm**: See [pnpm.io/installation](https://pnpm.io/installation) for instructions.
+
+### Installation
 
 1.  **Clone the Repository**
     ```sh
-    git clone [https://github.com/your-username/healthsync.git](https://github.com/your-username/healthsync.git)
+    git clone [https://github.com/nikoyogapranata/healthsync.git](https://github.com/nikoyogapranata/healthsync.git)
     cd healthsync
     ```
 
@@ -96,31 +87,22 @@ Make sure you have the following software installed on your machine:
     ```
 
 3.  **Set Up Supabase**
-    * If you don't have one, create a new project at **[database.new](https://database.new)**.
-    * Navigate to `Project Settings > API` in your Supabase dashboard.
-    * Create a new file named `.env.local` in the root of your project.
-    * Copy your API URL and `anon` key into the `.env.local` file as shown below.
+    * Create a project at **[database.new](https://database.new)**.
+    * In your Supabase dashboard, go to `Project Settings > API`.
+    * Create a file named `.env.local` in the root of your project.
+    * Copy your project URL and `anon` key into the `.env.local` file.
 
-    | Variable                    | Description                                       | Where to Find                                |
-    | --------------------------- | ------------------------------------------------- | -------------------------------------------- |
-    | `NEXT_PUBLIC_SUPABASE_URL`  | Your project's unique API URL.                    | Supabase Dashboard: `Settings > API > URL`   |
-    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | The public-facing anonymous key for your project. | Supabase Dashboard: `Settings > API > Project API Keys` |
-
-    Your `.env.local` file should look like this:
     ```env
-    NEXT_PUBLIC_SUPABASE_URL=https_://xxxxxx.supabase.co
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=eyxxxxxx...
+    # Found in Supabase Project Settings > API
+    NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_URL
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
     ```
 
 4.  **Set Up the Database Schema**
-    * Navigate to the **SQL Editor** in your Supabase project dashboard.
-    * Open and run the SQL files located in the `/scripts` directory of this project. Execute them one by one to set up the necessary tables, functions, and row-level security policies.
+    * Go to the **SQL Editor** in your Supabase dashboard.
+    * Run the SQL files from the `/scripts` directory in this project to set up the necessary tables and policies.
 
----
-
-## 🏃 Usage
-
-Once the setup is complete, you can run the application.
+### Running the App
 
 * **To run the development server:**
     ```sh
@@ -128,18 +110,14 @@ Once the setup is complete, you can run the application.
     ```
     Open your browser and visit **[http://localhost:3000](http://localhost:3000)**.
 
-* **To build the application for production:**
-    ```sh
-    pnpm build
-    ```
-
-* **To run the production build locally:**
-    ```sh
-    pnpm start
-    ```
-
 ---
 
-## 📁 Project Structure
+## 🤝 Contributing
 
-Here is a high-level overview of the project's directory structure:
+Contributions are welcome! If you have a suggestion or fix, please fork the repo and create a pull request.
+
+1.  Fork the Project
+2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the Branch (`git push origin feature/AmazingFeature`)
+5.  Open a Pull Request
