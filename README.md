@@ -1,11 +1,8 @@
 # HealthSync
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
-
 <div align="center">
 
 [![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/iforyouyeah1627-gmailcoms-projects/v0-health-sync)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge&logo=v0)](https://v0.dev/chat/projects/WfKQOXUkYuE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.io/)
 
@@ -55,7 +52,6 @@ This project was initially generated using **[v0.dev](https://v0.dev)** and is a
 * **Language:** TypeScript
 * **Backend & Database:** Supabase
 * **Styling:** Tailwind CSS
-* **UI Generation:** v0.dev
 * **UI Components:** shadcn/ui
 * **Package Manager:** pnpm
 
@@ -75,8 +71,8 @@ Make sure you have the following installed:
 
 1.  **Clone the Repository**
     ```sh
-    git clone [https://github.com/your-username/v0-health-sync.git](https://github.com/your-username/v0-health-sync.git)
-    cd v0-health-sync
+    git clone [https://github.com/nikoyogapranata/healthsync.git](https://github.com/nikoyogapranata/healthsync.git)
+    cd healthsync
     ```
 
 2.  **Install Dependencies**
@@ -107,15 +103,6 @@ Make sure you have the following installed:
     pnpm dev
     ```
     Open your browser and visit **[http://localhost:3000](http://localhost:3000)**.
-
----
-
-## ⚙️ How v0 Sync Works
-
-1.  Create and modify your UI components using the **[v0.dev interface](https://v0.dev/chat/projects/WfKQOXUkYuE)**.
-2.  Deploy your chats from the v0 interface.
-3.  Changes are automatically pushed to this GitHub repository.
-4.  Vercel automatically deploys the latest version from this repository.
 
 ---
 
