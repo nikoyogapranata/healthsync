@@ -15,6 +15,7 @@ import {
   Home,
   MessageCircle,
   Loader2,
+  ClipboardList,
 } from "lucide-react";
 import {
   Sidebar,
@@ -289,7 +290,13 @@ export function DashboardPatient() {
                         </div>
                       </div>
                     ) : (
-                      <p className="text-center text-gray-500 py-8">You have no active queue.</p>
+                      <div className="flex flex-col items-center justify-center text-center text-gray-500 py-12 space-y-3">
+                        <ClipboardList className="h-10 w-10 text-gray-300" />
+                        <p className="text-lg font-semibold">You have no active queue</p>
+                        <p className="text-sm text-muted-foreground">
+                          Book an appointment to see your queue status here.
+                        </p>
+                      </div>
                     )}
                   </CardContent>
                   <CardFooter className="pt-0">
