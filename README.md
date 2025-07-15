@@ -16,8 +16,6 @@
 * [✨ Features](#-features)
 * [🛠️ Tech Stack](#-tech-stack)
 * [🚀 Local Development Setup](#-local-development-setup)
-* [⚙️ How v0 Sync Works](#-how-v0-sync-works)
-* [📁 Project Structure](#-project-structure)
 * [🤝 Contributing](#-contributing)
 
 ---
