@@ -151,6 +151,9 @@ export function DashboardDirector() {
   const [allergyData, setAllergyData] = useState<NameValueData[]>([]);
   const [visitTypeData, setVisitTypeData] = useState<NameValueData[]>([]);
 
+  const [patientsByRegencyData, setPatientsByRegencyData] = useState<NameValueData[]>([]);
+  const [patientsByDistrictData, setPatientsByDistrictData] = useState<NameValueData[]>([]);
+
   useEffect(() => {
     const fetchAllData = async () => {
       setLoading(true);
@@ -184,60 +187,37 @@ export function DashboardDirector() {
           1
         ).toISOString();
 
-        const [
-          patientsCount,
-          activeDoctorsRaw,
-          departmentCount,
-          visitsThisMonth,
-          timeMetricsRaw,
-          dailyVisitsRaw,
-          topDiagnosesRaw,
-          topMedicinesRaw,
-          topAllergiesRaw,
-          visitTypesRaw,
-          departmentVisitsRaw,
-          patientsRaw,
-        ] = await Promise.all([
-          supabase
-            .from("patients")
-            .select("patient_id", { count: "exact", head: true }),
-          supabase.rpc("get_doctor_monthly_visits", {
-            facility_id: facilityId,
-          }),
-          supabase
-            .from("queue")
-            .select("department", { count: "exact", head: true })
-            .eq("healthcare_facility_id", facilityId),
-          supabase
-            .from("queue")
-            .select("queue_id", { count: "exact", head: true })
-            .eq("healthcare_facility_id", facilityId)
-            .gte("created_at", thisMonthStart),
-          supabase.rpc("get_kpi_times", { facility_id: facilityId }),
-          supabase.rpc("get_daily_visits_for_facility", {
-            facility_id: facilityId,
-            days_limit: 30,
-          }),
-          supabase.rpc("get_top_diagnoses", {
-            count_limit: 10,
-            facility_id: facilityId,
-          }),
-          supabase.rpc("get_top_medications", {
-            count_limit: 10,
-            facility_id: facilityId,
-          }),
-          supabase.rpc("get_top_allergies", {
-            count_limit: 10,
-            facility_id: facilityId,
-          }),
-          supabase.rpc("get_visit_type_distribution", {
-            facility_id: facilityId,
-          }),
-          supabase.rpc("get_visits_per_department", {
-            facility_id: facilityId,
-          }),
-          supabase.from("patients").select("gender, date_of_birth, blood_type"),
-        ]);
+const [
+        patientsCount,          // 1
+        activeDoctorsRaw,       // 2
+        departmentCount,        // 3
+        visitsThisMonth,        // 4
+        timeMetricsRaw,         // 5
+        dailyVisitsRaw,         // 6
+        topDiagnosesRaw,        // 7
+        topMedicinesRaw,        // 8
+        topAllergiesRaw,        // 9
+        visitTypesRaw,          // 10
+        departmentVisitsRaw,    // 11
+        patientsRaw,            // 12
+        patientsByRegencyRaw,   // 13
+        patientsByDistrictRaw,  // 14
+      ] = await Promise.all([
+        supabase.from("patients").select("patient_id", { count: "exact", head: true }), // 1
+        supabase.rpc("get_doctor_monthly_visits", { facility_id: facilityId }),         // 2
+        supabase.from("departments").select("department_id", { count: "exact", head: true }).eq("healthcare_facility_id", facilityId), // 3
+        supabase.from("queue").select("queue_id", { count: "exact", head: true }).eq("healthcare_facility_id", facilityId).gte("created_at", thisMonthStart), // 4
+        supabase.rpc("get_kpi_times", { facility_id: facilityId }), // 5
+        supabase.rpc("get_daily_visits_for_facility", { facility_id: facilityId, days_limit: 30 }), // 6
+        supabase.rpc("get_top_diagnosed_diseases", { count_limit: 10, facility_id: facilityId }), // 7
+        supabase.rpc("get_top_medications", { count_limit: 10, facility_id: facilityId }), // 8
+        supabase.rpc("get_top_allergies", { count_limit: 10, facility_id: facilityId }), // 9
+        supabase.rpc("get_visit_type_distribution", { facility_id: facilityId }), // 10
+        supabase.rpc("get_visits_per_department", { facility_id: facilityId }), // 11
+        supabase.from("patients").select("gender, date_of_birth, blood_type"), // 12
+        supabase.rpc("get_patients_by_regency", { p_facility_id: facilityId }), // 13
+        supabase.rpc("get_patients_by_district", { p_facility_id: facilityId }), // 14
+      ]);
 
         const timeMetrics = timeMetricsRaw.data?.[0];
         const formatSeconds = (sec: number | null) =>
@@ -262,11 +242,11 @@ export function DashboardDirector() {
           })) ?? []
         );
         setDiseaseData(
-          topDiagnosesRaw.data?.map((d: any) => ({
-            name: d.diagnosis,
-            value: Number(d.count),
-          })) ?? []
-        );
+  topDiagnosesRaw.data?.map((d: any) => ({
+    name: d.name,     // New property from your SQL function
+    value: Number(d.value), // New property from your SQL function
+  })) ?? []
+);
         setMedicineData(
           topMedicinesRaw.data?.map((d: any) => ({
             name: d.medication,
@@ -300,6 +280,18 @@ export function DashboardDirector() {
             value: Number(d.value),
           })) ?? []
         );
+        setPatientsByRegencyData(
+        patientsByRegencyRaw.data?.map((d: any) => ({
+          name: d.name,
+          value: Number(d.value),
+        })) ?? []
+      );
+      setPatientsByDistrictData(
+        patientsByDistrictRaw.data?.map((d: any) => ({
+          name: d.name,
+          value: Number(d.value),
+        })) ?? []
+      );
 
         if (patientsRaw.data) {
           const ageGroups: { [key: string]: { Male: number; Female: number } } =
@@ -737,6 +729,78 @@ export function DashboardDirector() {
                       </ResponsiveContainer>
                     </CardContent>
                   </Card>
+                  <Card>
+              <CardHeader>
+                <CardTitle>Patients by Regency</CardTitle>
+                <CardDescription>
+                  Patient origins by regency for this facility.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-96">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={patientsByRegencyData}
+                    layout="vertical"
+                    margin={{ left: 100 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={80}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip formatter={(value: any) => `${formatNumber(value)} patients`} />
+                    <Bar dataKey="value" name="Patients">
+                      {patientsByRegencyData.map((_e, i) => (
+                        <Cell
+                          key={`cell-${i}`}
+                          fill={CHART_COLORS[i % CHART_COLORS.length]}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* ADD THIS CARD FOR DISTRICTS */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Patients by District</CardTitle>
+                <CardDescription>
+                  Patient origins by district for this facility.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-96">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={patientsByDistrictData}
+                    layout="vertical"
+                    margin={{ left: 100 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={80}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip formatter={(value: any) => `${formatNumber(value)} patients`} />
+                    <Bar dataKey="value" name="Patients">
+                      {patientsByDistrictData.map((_e, i) => (
+                        <Cell
+                          key={`cell-${i}`}
+                          fill={CHART_COLORS[i % CHART_COLORS.length]}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
                 </TabsContent>
 
                 <TabsContent value="clinical" className="space-y-6">
