@@ -196,7 +196,7 @@ return (
                     <div className="flex items-center justify-center size-8 rounded-full bg-gradient-to-br from-[#3FB6F6] to-[#34D399] text-white flex-shrink-0"><MessageSquare className="size-4"/></div>
                     <div className={cn("prose prose-sm max-w-none rounded-2xl px-4 py-2 text-sm", "bg-gray-200 text-gray-800 rounded-bl-none")}>
                     <ReactMarkdown>
-                        {"Halo! 👋 Selamat datang di HealthSync.\n\nSaya adalah Asisten Kesehatan Virtual Anda, siap membantu 24/7.\n\nAnda bisa bertanya seputar rekam medis, jadwal pemeriksaan, hingga saran kesehatan umum.\n\nKetik saja pertanyaan Anda, dan saya akan bantu sebisa mungkin. 😊\n\nData Anda aman dan terjaga di sini."}
+                        {"Hello! 👋 Welcome to HealthSync.\n\nI'm your Virtual Health Assistant, ready to help 24/7.\n\nYou can ask questions about medical records, check-up schedules, and general health advice.\n\n Just type in your question, and I'll help you as much as I can. 😊\n\nYour data is safe and secure here."}
                     </ReactMarkdown>
                     </div>
                 </motion.div>
