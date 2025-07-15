@@ -61,7 +61,7 @@
 
 ---
 
-## 🎓 Reviewer Setup
+## 🎓 Reviewer Setup (UII)
 
 To run and edit the project on your local machine, follow these steps.
 
@@ -70,6 +70,8 @@ To run and edit the project on your local machine, follow these steps.
 Make sure you have the following installed:
 * **Node.js**: `v18.0` or newer.
 * **pnpm**: See [pnpm.io/installation](https://pnpm.io/installation) for instructions.
+
+There's no need to set up Supabase, as the .env.local file will be provided in the submission.
 
 ### Installation
 
