@@ -159,7 +159,7 @@ const generateEHR_PDF = (patient: Patient, ehr: EHRRecord) => {
         head: [['Date', 'Diagnosis', 'Doctor', 'Treatment Plan']],
         body: ehr.diagnosis.map((d: any) => [
           new Date(d.created_at).toLocaleDateString(),
-          d.diagnosis_description,
+          d.diseases?.name || d.diagnosis_description, // This line is changed
           d.doctors.full_name,
           d.treatment_plan
         ]),
@@ -328,7 +328,7 @@ export function PatientMedicalRecordsSystem() {
 
         const { data: ehrData, error: ehrError } = await supabase
           .from('ehr')
-          .select(`*, healthcare_facilities ( name ), doctors ( full_name ), diagnosis ( *, doctors ( full_name ) ), prescriptions ( *, doctors ( full_name ) ), examinations ( *, doctors ( full_name ) ), physical_examinations ( *, doctors ( full_name ) ), doctor_notes ( *, doctors ( full_name ) ), vaccinations ( *, doctors ( full_name ) )`)
+          .select(`*, healthcare_facilities ( name ), doctors ( full_name ), diagnosis ( *, doctors ( full_name ), diseases ( name, icd_10_code ) ), prescriptions ( *, doctors ( full_name ) ), examinations ( *, doctors ( full_name ) ), physical_examinations ( *, doctors ( full_name ) ), doctor_notes ( *, doctors ( full_name ) ), vaccinations ( *, doctors ( full_name ) )`)
           .eq('patient_id', patientData.patient_id)
           .order('created_at', { ascending: false });
 
@@ -627,7 +627,7 @@ export function PatientMedicalRecordsSystem() {
                                       <FileText className="h-6 w-6" />
                                       <div className="flex-1 space-y-1">
                                         <p className="text-sm font-medium leading-none">
-                                          {diag.diagnosis_description}
+                                          {diag.diseases?.name || diag.diagnosis_description}
                                         </p>
                                         <p className="text-sm text-muted-foreground">
                                           By {diag.doctors.full_name}
@@ -649,7 +649,7 @@ export function PatientMedicalRecordsSystem() {
                             <CardContent className="p-4">
                               <div className="flex justify-between items-start">
                                 <div>
-                                  <h4 className="font-semibold text-lg">{item.diagnosis_description}</h4>
+                                  <h4 className="font-semibold text-lg">{item.diseases?.name || item.diagnosis_description}</h4>
                                   <p className="text-sm text-gray-600">{item.doctors.full_name}</p>
                                 </div>
                                 <p className="text-sm font-medium">{new Date(item.created_at).toLocaleDateString()}</p>

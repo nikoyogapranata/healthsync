@@ -15,6 +15,10 @@ import autoTable from "jspdf-autotable";
 
 // Import ReactMarkdown
 import ReactMarkdown from "react-markdown";
+import { DiseaseCombobox } from "@/components/DiseaseCombobox"
+
+
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 
 // --- Icon Imports ---
 import {
@@ -142,6 +146,12 @@ interface EHRReferenceData {
 interface AllergyType {
   allergy_type_id: string;
   name: string;
+}
+
+interface DiseaseType {
+  disease_id: string;
+  name: string;
+  icd_10_code: string;
 }
 
 function ManageAllergiesDialog({
@@ -358,6 +368,38 @@ function AddDiagnosisDialog({
     topMatch: EHRReferenceData | null;
   }>({ totalRecords: 0, matchingRecords: 0, topMatch: null });
   const supabase = createClient();
+
+  // NEW: State to hold the list of all diseases
+  const [allDiseases, setAllDiseases] = useState<DiseaseType[]>([]);
+  const [selectedDiseaseId, setSelectedDiseaseId] = useState<string>("");
+
+  // NEW: useEffect to fetch all diseases when the dialog opens
+  useEffect(() => {
+    if (open) {
+      // Reset state when dialog opens
+      setSubjectiveComplaint("");
+      setAiRecommendation("");
+      setAiError("");
+      setReferenceEHRData([]);
+      setAnalysisStats({ totalRecords: 0, matchingRecords: 0, topMatch: null });
+
+      // Fetch the list of diseases for the dropdown
+      const fetchDiseases = async () => {
+        const { data, error } = await supabase
+          .from("diseases")
+          .select("disease_id, name, icd_10_code")
+          .order("name", { ascending: true });
+        
+        if (error) {
+          toast({ title: "Error", description: "Could not fetch the list of diseases.", variant: "destructive"});
+        } else {
+          setAllDiseases(data);
+        }
+      };
+      
+      fetchDiseases();
+    }
+  }, [open, supabase]);
 
   useEffect(() => {
     // Reset state when dialog opens
@@ -626,17 +668,18 @@ doctors!inner(full_name)
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="diagnosis_description">
-                  Doctor's Diagnosis (Final){" "}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="diagnosis_description"
-                  name="diagnosis_description"
-                  required
-                  placeholder="Example: Allergic Rhinitis"
-                />
-              </div>
+              <Label htmlFor="disease-combobox">
+                Doctor's Diagnosis (Final){" "}
+                <span className="text-red-500">*</span>
+              </Label>
+              <DiseaseCombobox
+                diseases={allDiseases}
+                selectedId={selectedDiseaseId}
+                onSelect={setSelectedDiseaseId}
+              />
+              {/* IMPORTANT: This hidden input sends the ID with the form */}
+              <input type="hidden" name="disease_id" value={selectedDiseaseId} />
+            </div>
 
               <div className="space-y-2">
                 <Label htmlFor="treatment_plan">
