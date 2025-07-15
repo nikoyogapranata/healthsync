@@ -34,7 +34,7 @@
 
 ### Quick Links
 
-* **Live Deployment:** **[healthsync-7.vercel.app]([https://healthsync-7.vercel.app/])**
+* **Live Deployment:** **[healthsync-7.vercel.app](https://healthsync-7.vercel.app/)**
   
 ---
 
