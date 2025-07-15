@@ -1,6 +1,16 @@
 # HealthSync
 
 <div align="center">
+  <h1 align="center">HealthSync</h1>
+  <p align="center">
+    A modern, all-in-one healthcare management platform.
+    <br />
+    <a href="https://healthsync-7.vercel.app/"><strong>View Live Demo »</strong></a>
+  </p>
+  <br />
+</div>
+
+<div align="center">
 
 [![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/iforyouyeah1627-gmailcoms-projects/v0-health-sync)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
