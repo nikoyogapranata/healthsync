@@ -77,7 +77,6 @@ interface Queue {
   payment_status: "Not Paid" | "Paid" | "Waived";
   created_at: string;
   visit_type?: string;
-  triage_priority?: string;
   called_at?: string | null;
   completed_at?: string | null;
 }
@@ -140,57 +139,103 @@ export function AdminQueueManagement() {
   const [historySearchTerm, setHistorySearchTerm] = useState(""); // Search state for history queue
   const pathname = usePathname();
   const supabase = createClient();
+  const [healthcareFacilityId, setHealthcareFacilityId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("queue")
-        .select(`
-          queue_id, queue_number, queue_status, payment_status,
-          visit_type, triage_priority, created_at, called_at, completed_at,
-          patients ( full_name ),
-          doctors ( full_name ),
-          departments ( name )
-        `)
-        .order("created_at", { ascending: false });
+useEffect(() => {
+  const getAdminProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: adminProfile, error } = await supabase
+        .from("admins")
+        .select("healthcare_facility_id")
+        .eq("user_id", user.id)
+        .single();
 
-      if (error) {
+      if (error || !adminProfile) {
         toast({
           title: "Error",
-          description: "Could not fetch queue data.",
+          description: "Could not find admin profile.",
           variant: "destructive",
         });
-      } else {
-        setQueues(data as any);
+        setLoading(false);
+        return;
       }
-      setLoading(false);
-    };
+      
+            setHealthcareFacilityId(adminProfile.healthcare_facility_id);
+    }
+  };
 
-    fetchInitialData();
+  getAdminProfile();
+}, [supabase]);
 
-    const channel = supabase
-      .channel("queue-realtime-channel")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "queue" },
-        (payload) => {
-          const updatedRecord = payload.new as Queue;
-          setQueues((currentQueues) =>
-            currentQueues.map((q) =>
-              q.queue_id === updatedRecord.queue_id
-                ? { ...q, ...updatedRecord }
-                : q
-            )
-          );
-        }
-      )
-      .subscribe();
+  useEffect(() => {
+  // 1. Guard clause: Don't run if we don't have the facility ID yet
+  if (!healthcareFacilityId) return;
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase]);
+  const fetchInitialData = async () => {
+    setLoading(true);
+    // 2. Add the .eq() filter to the initial query
+    const { data, error } = await supabase
+      .from("queue")
+      .select(`
+        queue_id, queue_number, queue_status, payment_status,
+        visit_type, created_at, called_at, completed_at,
+        patients ( full_name ),
+        doctors ( full_name ),
+        departments ( name )
+      `)
+      .eq('healthcare_facility_id', healthcareFacilityId) // <-- Important filter
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Could not fetch queue data for your facility.",
+        variant: "destructive",
+      });
+    } else {
+      setQueues(data as any);
+    }
+    setLoading(false);
+  };
+
+  fetchInitialData();
+
+  // 3. Filter the real-time subscription
+  const channel = supabase
+    .channel(`queue-realtime-channel-${healthcareFacilityId}`) // Unique channel name
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "queue",
+        filter: `healthcare_facility_id=eq.${healthcareFacilityId}` // <-- Important filter
+      },
+      (payload) => {
+        const updatedRecord = payload.new as Queue;
+        // Logic to add or update records in the queue
+        setQueues((currentQueues) => {
+          const existingIndex = currentQueues.findIndex(q => q.queue_id === updatedRecord.queue_id);
+          if (existingIndex > -1) {
+            // Update existing record
+            const newQueues = [...currentQueues];
+            newQueues[existingIndex] = { ...newQueues[existingIndex], ...updatedRecord };
+            return newQueues;
+          } else {
+            // Add new record
+            return [updatedRecord, ...currentQueues];
+          }
+        });
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+  
+}, [supabase, healthcareFacilityId]);
 
     const handleUpdateStatus = async (
       queue_id: string,
