@@ -24,6 +24,7 @@
 * [✨ Features](#-features)
 * [🛠️ Tech Stack](#-tech-stack)
 * [🎓 Reviewer Setup (UII)](#-reviewer-setup)
+* [👤 Default Account for Testing](#-default-account-for-testing)
 * [🚀 Local Development Setup](#-local-development-setup)
 
 ---
@@ -87,6 +88,17 @@ There's no need to set up Supabase, as the .env.local file will be provided in t
     pnpm dev
     ```
     Open your browser and visit **[http://localhost:3000](http://localhost:3000)**.
+
+---
+
+## 👤 Default Account for Testing
+
+Patient: nikoyogapranata@gmail.com ,password: 12345678
+Doctor: nikoyoga0@gmail.com ,password: 12345678
+Admin: iforyouyeah1627@gmail.com ,password: 12345678
+Director: nikopranatabusiness@gmail.com ,password: 12345678
+Regional Admin: nikoyogapranatawork@gmail.com ,password: 12345678
+Superadmin: superadmin@healthsync.com  ,password: healthsync7
 
 ---
 
