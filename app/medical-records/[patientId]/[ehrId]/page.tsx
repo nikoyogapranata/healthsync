@@ -132,7 +132,7 @@ interface DetailedEHR {
     name: string;
     healthcare_facility_id: string;
   } | null;
-  diagnosis: any[];
+  diagnosis: Diagnosis[];
   prescriptions: any[];
   examinations: any[];
   physical_examinations: any[];
@@ -149,6 +149,19 @@ interface EHRReferenceData {
   doctor_name: string;
   created_at: string;
   similarity_score: number;
+}
+
+interface Diagnosis {
+  diagnosis_id: string;
+  diagnosis_description: string;
+  treatment_plan: string;
+  created_at: string;
+  doctors: { full_name: string };
+  // This will hold the joined data from the 'diseases' table
+  diseases: {
+    name: string;
+    icd_10_code: string;
+  } | null;
 }
 
 interface AllergyType {
@@ -1220,7 +1233,7 @@ export default function DoctorSingleEHRDetail() {
           patients!inner(*, users(email), patient_allergies(*, allergy_type(*))), 
           doctors(full_name), 
           healthcare_facilities(*), 
-          diagnosis(*, doctors(full_name)), 
+          diagnosis(*, doctors(full_name), diseases(name, icd_10_code)), 
           prescriptions(*, medications(*)), 
           examinations(*), 
           physical_examinations(*), 
@@ -1332,99 +1345,113 @@ export default function DoctorSingleEHRDetail() {
     }
   };
 
-  const handleAddNewData = async (formData: any, dataType: string) => {
-    if (!ehr || !doctorProfile || !ehr.healthcare_facilities) {
-      toast({
-        title: "Error",
-        description: "Critical data missing.",
-        variant: "destructive",
-      });
-      return;
-    }
-    setIsSubmitting(true);
-    let tableName = "";
-    switch (dataType) {
-      case "Diagnosis":
-        tableName = "diagnosis";
-        break;
-      case "Prescription":
-        tableName = "prescriptions";
-        break;
-      case "Examination":
-        tableName = "examinations";
-        break;
-      case "Physical Examination":
-        tableName = "physical_examinations";
-        break;
-      case "Note":
-        tableName = "doctor_notes";
-        break;
-      case "Vaccination":
-        tableName = "vaccinations";
-        break;
-      default:
-        toast({
-          title: "Submission Failed",
-          description: `Invalid data type: ${dataType}`,
-          variant: "destructive",
-        });
-        setIsSubmitting(false);
-        return;
-    }
-
-    const payload = {
-      ...formData,
-      ehr_id: ehr.ehr_id,
-      doctor_id: doctorProfile.doctor_id,
-      healthcare_facility_id: ehr.healthcare_facilities.healthcare_facility_id,
-    };
-
-
-
-    try {
-      const { data: newRecord, error } = await supabase
-        .from(tableName)
-        .insert(payload)
-        .select("*, doctors(full_name)")
-        .single();
-      if (error) throw error;
-      setEhr((prev) => {
-        if (!prev) return null;
-        type EhrArrayKey =
-          | "diagnosis"
-          | "prescriptions"
-          | "examinations"
-          | "physical_examinations"
-          | "doctor_notes"
-          | "vaccinations";
-        const keyMap: { [key: string]: EhrArrayKey } = {
-          Diagnosis: "diagnosis",
-          Prescription: "prescriptions",
-          Examination: "examinations",
-          "Physical Examination": "physical_examinations",
-          Note: "doctor_notes",
-          Vaccination: "vaccinations",
-        };
-        const ehrKey = keyMap[dataType];
-        const existingRecords = prev[ehrKey] || [];
-        return { ...prev, [ehrKey]: [...existingRecords, newRecord] };
-      });
-      toast({
-        title: "Success!",
-        description: `${dataType} has been added successfully.`,
-      });
-      setAddingDataType(null);
-      setIsDiagnosisDialogOpen(false);
-    } catch (err: any) {
+const handleAddNewData = async (formData: any, dataType: string) => {
+  if (!ehr || !doctorProfile || !ehr.healthcare_facilities) {
+    toast({
+      title: "Error",
+      description: "Critical data missing.",
+      variant: "destructive",
+    });
+    return;
+  }
+  setIsSubmitting(true);
+  let tableName = "";
+  switch (dataType) {
+    case "Diagnosis":
+      tableName = "diagnosis";
+      break;
+    case "Prescription":
+      tableName = "prescriptions";
+      break;
+    case "Examination":
+      tableName = "examinations";
+      break;
+    case "Physical Examination":
+      tableName = "physical_examinations";
+      break;
+    case "Note":
+      tableName = "doctor_notes";
+      break;
+    case "Vaccination":
+      tableName = "vaccinations";
+      break;
+    default:
       toast({
         title: "Submission Failed",
-        description: `Could not add ${dataType}: ${err.message}`,
+        description: `Invalid data type: ${dataType}`,
         variant: "destructive",
       });
-    } finally {
       setIsSubmitting(false);
-    }
+      return;
+  }
+
+  const payload = {
+    ...formData,
+    ehr_id: ehr.ehr_id,
+    doctor_id: doctorProfile.doctor_id,
+    healthcare_facility_id: ehr.healthcare_facilities.healthcare_facility_id,
   };
+
+  try {
+    // --- FIX: Make the select query dynamic based on the data type ---
+    let selectQuery = "*, doctors(full_name)";
+    if (dataType === "Diagnosis") {
+      // For diagnosis, we need to join with the diseases table
+      selectQuery = "*, doctors(full_name), diseases(name, icd_10_code)";
+    } else if (dataType === "Prescription") {
+      // For prescriptions, we need to join with the medications table
+      selectQuery = "*, doctors(full_name), medications(*)";
+    }
+    // Other types can use the default query
+
+    const { data: newRecord, error } = await supabase
+      .from(tableName)
+      .insert(payload)
+      .select(selectQuery) // Use the dynamic query string
+      .single();
+
+    if (error) throw error;
+
+    // This logic now works because `newRecord` has the correct shape
+    setEhr((prev) => {
+      if (!prev) return null;
+      type EhrArrayKey =
+        | "diagnosis"
+        | "prescriptions"
+        | "examinations"
+        | "physical_examinations"
+        | "doctor_notes"
+        | "vaccinations";
+      const keyMap: { [key: string]: EhrArrayKey } = {
+        Diagnosis: "diagnosis",
+        Prescription: "prescriptions",
+        Examination: "examinations",
+        "Physical Examination": "physical_examinations",
+        Note: "doctor_notes",
+        Vaccination: "vaccinations",
+      };
+      const ehrKey = keyMap[dataType];
+      const existingRecords = prev[ehrKey] || [];
+      return { ...prev, [ehrKey]: [...existingRecords, newRecord] };
+    });
+
+    toast({
+      title: "Success!",
+      description: `${dataType} has been added successfully.`,
+    });
+    setAddingDataType(null);
+    setIsDiagnosisDialogOpen(false);
+  } catch (err: any) {
+    toast({
+      title: "Submission Failed",
+      description: `Could not add ${dataType}: ${err.message}`,
+      variant: "destructive",
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
 
   const handleConfirmDownload = () => {
     if (ehr && ehr.patients) {
@@ -1652,30 +1679,43 @@ export default function DoctorSingleEHRDetail() {
                   </Button>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-4">
-                  {ehr.diagnosis.length > 0 ? (
-                    ehr.diagnosis.map((d: any) => (
-                      <div
-                        key={d.diagnosis_id}
-                        className="p-4 rounded-md border bg-slate-50"
-                      >
-                        <h4 className="font-semibold">
-                          {d.diagnosis_description}
-                        </h4>
-                        <p className="text-sm mt-1 text-gray-700">
-                          {d.treatment_plan}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          By {d.doctors.full_name} on{" "}
-                          {new Date(d.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-center text-muted-foreground py-8">
-                      No diagnosis records for this visit.
-                    </p>
-                  )}
-                </CardContent>
+  {ehr.diagnosis.length > 0 ? (
+    ehr.diagnosis.map((d) => ( // 'd' is now of type Diagnosis
+      <div
+        key={d.diagnosis_id}
+        className="p-4 rounded-md border bg-slate-50"
+      >
+        <h4 className="font-semibold text-lg">
+          {/* Use the disease name as the title */}
+          {d.diseases?.name ?? "Unspecified Diagnosis"}
+        </h4>
+        <p className="text-sm text-muted-foreground font-mono">
+          {/* Display the ICD-10 code */}
+          {d.diseases?.icd_10_code}
+        </p>
+        
+        {/* Display the free-text description as notes if it exists */}
+        {d.diagnosis_description && (
+            <p className="text-sm mt-2 pt-2 border-t text-gray-700">
+                <strong>Notes:</strong> {d.diagnosis_description}
+            </p>
+        )}
+
+        <p className="text-sm mt-2 text-gray-800">
+          {d.treatment_plan}
+        </p>
+        <p className="text-xs text-muted-foreground mt-2">
+          By {d.doctors.full_name} on{" "}
+          {new Date(d.created_at).toLocaleDateString()}
+        </p>
+      </div>
+    ))
+  ) : (
+    <p className="text-sm text-center text-muted-foreground py-8">
+      No diagnosis records for this visit.
+    </p>
+  )}
+</CardContent>
               </Card>
             </TabsContent>
 

@@ -194,11 +194,14 @@ export function DashboardPatient() {
           // Query 1: Get the absolute latest queue entry
           supabase
             .from("queue")
-            .select("queue_number, department, queue_status, created_at")
-            .eq("patient_id", patientId)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .single(),
+  // Also fetch the department name via the relationship
+  .select("queue_number, queue_status, created_at, departments(name)") 
+  .eq("patient_id", patientId)
+  // This is the key change: only find queues that are "Waiting"
+  .eq("queue_status", "Waiting") 
+  .order("created_at", { ascending: false })
+  .limit(1)
+  .single(),
           // Query 2: Get the absolute latest EHR entry for summary
           supabase
             .from("ehr")
@@ -218,24 +221,25 @@ export function DashboardPatient() {
 
         // --- Process Latest Queue Data ---
         if (latestQueueRes.data) {
-          const queue = latestQueueRes.data;
-          const queueDate = new Date(queue.created_at);
-          setLatestQueue({
-            queueNumber: queue.queue_number || "N/A",
-            service: queue.department || "N/A",
-            status: queue.queue_status || "N/A",
-            queueDate: queueDate.toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            }),
-            queueTime: queueDate.toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: true,
-            }),
-          });
-        }
+  const queue = latestQueueRes.data;
+  const queueDate = new Date(queue.created_at);
+  setLatestQueue({
+    queueNumber: queue.queue_number || "N/A",
+    // Correctly access the nested department name
+    service: queue.departments?.name || "General Service", 
+    status: queue.queue_status || "N/A",
+    queueDate: queueDate.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }),
+    queueTime: queueDate.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+  });
+}
 
         // --- Process Last Visit Summary Data ---
         if (lastEhrRes.data) {
