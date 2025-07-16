@@ -1195,48 +1195,62 @@ export default function DoctorSingleEHRDetail() {
   // 1. The fetchEHRDetails function is now defined in the main component scope
   //    and wrapped in useCallback for performance.
   const fetchEHRDetails = useCallback(async () => {
-    if (!ehrId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Authentication failed.");
+  if (!ehrId) return;
+  setLoading(true);
+  setError(null);
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Authentication failed.");
 
-      const { data: doctor, error: doctorError } = await supabase
-        .from("doctors")
-        .select("doctor_id, full_name")
-        .eq("user_id", user.id)
-        .single();
-      if (doctorError) throw new Error("Could not find your doctor profile.");
-      setDoctorProfile(doctor);
+    const { data: doctor, error: doctorError } = await supabase
+      .from("doctors")
+      .select("doctor_id, full_name")
+      .eq("user_id", user.id)
+      .single();
+    if (doctorError) throw new Error("Could not find your doctor profile.");
+    setDoctorProfile(doctor);
 
-      const { data: ehrData, error: ehrError } = await supabase
+    const { data: ehrData, error: ehrError } = await supabase
+      .from("ehr")
+      .select(
+        `
+          *, 
+          patients!inner(*, users(email), patient_allergies(*, allergy_type(*))), 
+          doctors(full_name), 
+          healthcare_facilities(*), 
+          diagnosis(*, doctors(full_name)), 
+          prescriptions(*, medications(*)), 
+          examinations(*), 
+          physical_examinations(*), 
+          doctor_notes(*), 
+          vaccinations(*)
+        `
+      )
+      .eq("ehr_id", ehrId)
+      .single();
+    if (ehrError)
+      throw new Error(`Could not fetch EHR record: ${ehrError.message}`);
+
+    const detailedEhrData = ehrData as DetailedEHR;
+    setEhr(detailedEhrData);
+
+    // --- CORRECTED HISTORY FETCHING LOGIC ---
+    if (detailedEhrData?.patients?.patient_id) {
+      // 1. Get all other EHR IDs for this patient
+      const { data: patientEhrs, error: patientEhrsError } = await supabase
         .from("ehr")
-        .select(
-          `
-            *, 
-            patients!inner(*, users(email), patient_allergies(*, allergy_type(*))), 
-            doctors(full_name), 
-            healthcare_facilities(*), 
-            diagnosis(*, doctors(full_name)), 
-    prescriptions(*, medications(*)), 
-            examinations(*), 
-            physical_examinations(*), 
-            doctor_notes(*), 
-            vaccinations(*)
-          `
-        )
-        .eq("ehr_id", ehrId)
-        .single();
-      if (ehrError)
-        throw new Error(`Could not fetch EHR record: ${ehrError.message}`);
+        .select("ehr_id")
+        .eq("patient_id", detailedEhrData.patients.patient_id)
+        .neq("ehr_id", ehrId); // Exclude the current EHR
 
-      const detailedEhrData = ehrData as DetailedEHR;
-      setEhr(detailedEhrData);
+      if (patientEhrsError || !patientEhrs) {
+        console.warn("Could not fetch patient's EHR history.");
+      } else {
+        const historicalEhrIds = patientEhrs.map((e) => e.ehr_id);
 
-      if (detailedEhrData?.patients?.patient_id) {
+        // 2. Get diagnoses linked to those historical EHR IDs
         const { data: historyData, error: historyError } = await supabase
           .from("diagnosis")
           .select(
@@ -1250,8 +1264,7 @@ export default function DoctorSingleEHRDetail() {
               doctors(full_name)
             `
           )
-          .eq("patient_id", detailedEhrData.patients.patient_id)
-          .neq("ehr_id", ehrId)
+          .in("ehr_id", historicalEhrIds) // Use .in() with the list of IDs
           .order("created_at", { ascending: false });
 
         if (historyError) {
@@ -1274,12 +1287,14 @@ export default function DoctorSingleEHRDetail() {
           setDiagnosisHistory(formattedHistory);
         }
       }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
     }
-  }, [ehrId, supabase]); // Dependencies for useCallback
+  } catch (err: any) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+}, [ehrId, supabase]); // Dependencies for useCallback
+
 
   // 2. The useEffect hook now simply calls the function defined above.
   useEffect(() => {
@@ -1364,9 +1379,7 @@ export default function DoctorSingleEHRDetail() {
       healthcare_facility_id: ehr.healthcare_facilities.healthcare_facility_id,
     };
 
-    if (dataType === "Diagnosis" && ehr.patients) {
-      payload.patient_id = ehr.patients.patient_id;
-    }
+
 
     try {
       const { data: newRecord, error } = await supabase

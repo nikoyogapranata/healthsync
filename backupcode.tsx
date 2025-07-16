@@ -127,3 +127,8 @@ const generateEnhancedAIRecommendation = (
     return enScore > idScore ? "en" : "id"
   }
   */
+
+
+      if (dataType === "Diagnosis" && ehr.patients) {
+      payload.patient_id = ehr.patients.patient_id;
+    }
