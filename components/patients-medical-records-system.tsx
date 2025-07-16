@@ -328,7 +328,7 @@ export function PatientMedicalRecordsSystem() {
 
         const { data: ehrData, error: ehrError } = await supabase
           .from('ehr')
-          .select(`*, healthcare_facilities ( name ), doctors ( full_name ), diagnosis ( *, doctors ( full_name ), diseases ( name, icd_10_code ) ), prescriptions ( *, doctors ( full_name ) ), examinations ( *, doctors ( full_name ) ), physical_examinations ( *, doctors ( full_name ) ), doctor_notes ( *, doctors ( full_name ) ), vaccinations ( *, doctors ( full_name ) )`)
+          .select(`*, healthcare_facilities ( name ), doctors ( full_name ), diagnosis ( *, doctors ( full_name ), diseases ( name, icd_10_code ) ), prescriptions ( *, doctors ( full_name ), medications ( name, brand_name, dosage, form ) ), examinations ( *, doctors ( full_name ) ), physical_examinations ( *, doctors ( full_name ) ), doctor_notes ( *, doctors ( full_name ) ), vaccinations ( *, doctors ( full_name ) )`)
           .eq('patient_id', patientData.patient_id)
           .order('created_at', { ascending: false });
 
@@ -370,14 +370,17 @@ export function PatientMedicalRecordsSystem() {
      setShowDownloadDialog(false);
   }
 
-  if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-        <p className="ml-4 text-lg">Loading Medical Records...</p>
-      </div>
-    );
-  }
+/*
+if (loading) {
+  return (
+    <div className="flex h-screen w-full items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      <p className="ml-4 text-lg">Loading Medical Records...</p>
+    </div>
+  );
+}
+*/
+
 
   if (error) {
     return (
@@ -669,7 +672,7 @@ export function PatientMedicalRecordsSystem() {
                                 <CardContent className="p-4 grid gap-2">
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <h4 className="font-semibold text-lg">{item.medication_name}</h4>
+                                            <h4 className="font-semibold text-lg">{item.medications?.name || item.medication_name}</h4>
                                             <p className="text-sm text-gray-600">{item.doctors.full_name}</p>
                                         </div>
                                         <p className="text-sm font-medium">{new Date(item.created_at).toLocaleDateString()}</p>

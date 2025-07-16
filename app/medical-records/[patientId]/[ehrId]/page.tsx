@@ -1,3 +1,5 @@
+//app\medical-records\[patientId]\[ehrId]\page.tsx
+
 "use client";
 
 import type React from "react";
@@ -15,10 +17,16 @@ import autoTable from "jspdf-autotable";
 
 // Import ReactMarkdown
 import ReactMarkdown from "react-markdown";
-import { DiseaseCombobox } from "@/components/DiseaseCombobox"
+import { DiseaseCombobox } from "@/components/DiseaseCombobox";
+import { MedicationCombobox } from "@/components/MedicationCombobox";
 
-
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 // --- Icon Imports ---
 import {
@@ -154,6 +162,13 @@ interface DiseaseType {
   icd_10_code: string;
 }
 
+interface Medication {
+  medication_id: string;
+  name: string;
+  dosage: string | null;
+  form: string | null;
+}
+
 function ManageAllergiesDialog({
   open,
   onOpenChange,
@@ -218,12 +233,10 @@ function ManageAllergiesDialog({
     }
 
     setIsSubmitting(true);
-    const { error } = await supabase
-      .from("patient_allergies")
-      .insert({
-        patient_id: patient.patient_id,
-        allergy_type_id: selectedAllergyId,
-      });
+    const { error } = await supabase.from("patient_allergies").insert({
+      patient_id: patient.patient_id,
+      allergy_type_id: selectedAllergyId,
+    });
 
     if (error) {
       toast({
@@ -389,14 +402,18 @@ function AddDiagnosisDialog({
           .from("diseases")
           .select("disease_id, name, icd_10_code")
           .order("name", { ascending: true });
-        
+
         if (error) {
-          toast({ title: "Error", description: "Could not fetch the list of diseases.", variant: "destructive"});
+          toast({
+            title: "Error",
+            description: "Could not fetch the list of diseases.",
+            variant: "destructive",
+          });
         } else {
           setAllDiseases(data);
         }
       };
-      
+
       fetchDiseases();
     }
   }, [open, supabase]);
@@ -668,18 +685,22 @@ doctors!inner(full_name)
               </div>
 
               <div className="space-y-2">
-              <Label htmlFor="disease-combobox">
-                Doctor's Diagnosis (Final){" "}
-                <span className="text-red-500">*</span>
-              </Label>
-              <DiseaseCombobox
-                diseases={allDiseases}
-                selectedId={selectedDiseaseId}
-                onSelect={setSelectedDiseaseId}
-              />
-              {/* IMPORTANT: This hidden input sends the ID with the form */}
-              <input type="hidden" name="disease_id" value={selectedDiseaseId} />
-            </div>
+                <Label htmlFor="disease-combobox">
+                  Doctor's Diagnosis (Final){" "}
+                  <span className="text-red-500">*</span>
+                </Label>
+                <DiseaseCombobox
+                  diseases={allDiseases}
+                  selectedId={selectedDiseaseId}
+                  onSelect={setSelectedDiseaseId}
+                />
+                {/* IMPORTANT: This hidden input sends the ID with the form */}
+                <input
+                  type="hidden"
+                  name="disease_id"
+                  value={selectedDiseaseId}
+                />
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="treatment_plan">
@@ -839,12 +860,38 @@ function AddEhrDataDialog({
   onSubmit: (formData: any, dataType: string) => Promise<void>;
   isSubmitting: boolean;
 }) {
+  const supabase = createClient();
+  // State for the medication list and selected ID
+  const [allMedications, setAllMedications] = useState<Medication[]>([]);
+  const [selectedMedicationId, setSelectedMedicationId] = useState("");
+
+  // Fetch all medications when the dialog opens for prescriptions
+  useEffect(() => {
+    if (dataType === "Prescription") {
+      const fetchMedications = async () => {
+        const { data, error } = await supabase
+          .from("medications")
+          .select("*")
+          .order("name");
+        if (data) setAllMedications(data);
+      };
+      fetchMedications();
+      setSelectedMedicationId(""); // Reset selection
+    }
+  }, [dataType, supabase]);
+
   if (!dataType) return null;
 
   const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const data = Object.fromEntries(formData.entries());
+
+    // Add the selected medication_id to the submission
+    if (dataType === "Prescription") {
+      data.medication_id = selectedMedicationId;
+    }
+
     onSubmit(data, dataType);
   };
 
@@ -853,14 +900,21 @@ function AddEhrDataDialog({
       case "Prescription":
         return (
           <>
-            <Label htmlFor="medication_name">Medication Name</Label>
-            <Input id="medication_name" name="medication_name" required />
-            <Label htmlFor="dosage">Dosage</Label>
+            <Label htmlFor="medication-combobox">Medication</Label>
+            <MedicationCombobox
+              medications={allMedications}
+              selectedId={selectedMedicationId}
+              onSelect={setSelectedMedicationId}
+            />
+            {/* The rest of the prescription fields */}
+            <Label htmlFor="dosage">
+              Dosage Instruction (e.g., "1 tablet, twice a day")
+            </Label>
             <Input id="dosage" name="dosage" required />
-            <Label htmlFor="duration">Duration</Label>
+            <Label htmlFor="duration">Duration (e.g., "7 days")</Label>
             <Input id="duration" name="duration" required />
-            <Label htmlFor="instruction">Instruction</Label>
-            <Textarea id="instruction" name="instruction" required />
+            <Label htmlFor="instruction">Additional Instructions</Label>
+            <Textarea id="instruction" name="instruction" />
           </>
         );
       case "Examination":
@@ -909,9 +963,6 @@ function AddEhrDataDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add New {dataType}</DialogTitle>
-          <DialogDescription>
-            Fill out the details below to add a new entry to the record.
-          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleFormSubmit} className="space-y-4 pt-4">
           <div className="space-y-2">{renderFormFields()}</div>
@@ -1170,7 +1221,7 @@ export default function DoctorSingleEHRDetail() {
             doctors(full_name), 
             healthcare_facilities(*), 
             diagnosis(*, doctors(full_name)), 
-            prescriptions(*), 
+    prescriptions(*, medications(*)), 
             examinations(*), 
             physical_examinations(*), 
             doctor_notes(*), 
@@ -1635,7 +1686,9 @@ export default function DoctorSingleEHRDetail() {
                         key={p.prescription_id}
                         className="p-4 rounded-md border bg-slate-50"
                       >
-                        <h4 className="font-semibold">{p.medication_name}</h4>
+                        <h4 className="font-semibold">
+                          {p.medications?.name || p.medication_name}
+                        </h4>
                         <p className="text-sm text-gray-700">
                           {p.dosage} - {p.duration}
                         </p>

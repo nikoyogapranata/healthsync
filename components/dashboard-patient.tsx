@@ -302,14 +302,17 @@ export function DashboardPatient() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-[#3FB6F6]" />
-        <p className="ml-4 text-lg">Loading Dashboard...</p>
-      </div>
-    );
-  }
+/*
+if (loading) {
+  return (
+    <div className="flex h-screen w-full items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      <p className="ml-4 text-lg">Loading Dashboard...</p>
+    </div>
+  );
+}
+*/
+
 
   if (error) {
     return (

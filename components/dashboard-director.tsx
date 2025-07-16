@@ -210,7 +210,7 @@ const [
         supabase.rpc("get_kpi_times", { facility_id: facilityId }), // 5
         supabase.rpc("get_daily_visits_for_facility", { facility_id: facilityId, days_limit: 30 }), // 6
         supabase.rpc("get_top_diagnosed_diseases", { count_limit: 10, facility_id: facilityId }), // 7
-        supabase.rpc("get_top_medications", { count_limit: 10, facility_id: facilityId }), // 8
+        supabase.rpc("get_top_medications", { p_limit: 10, p_facility_id: facilityId }), // 8
         supabase.rpc("get_top_allergies", { count_limit: 10, facility_id: facilityId }), // 9
         supabase.rpc("get_visit_type_distribution", { facility_id: facilityId }), // 10
         supabase.rpc("get_visits_per_department", { facility_id: facilityId }), // 11
@@ -248,11 +248,11 @@ const [
   })) ?? []
 );
         setMedicineData(
-          topMedicinesRaw.data?.map((d: any) => ({
-            name: d.medication,
-            value: Number(d.count),
-          })) ?? []
-        );
+  topMedicinesRaw.data?.map((d: any) => ({
+    name: d.name,
+    value: Number(d.value),
+  })) ?? []
+);
         setActiveDoctorsData(
           activeDoctorsRaw.data?.map((d: any) => ({
             id: d.doctor_id,
