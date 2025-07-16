@@ -31,73 +31,93 @@ export function LoginForm() {
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
+  e.preventDefault();
+  setIsLoading(true);
+  setError("");
 
-    try {
-      // 1. Sign in with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+  try {
+    // 1. Sign in with Supabase Auth
+    const { data: authData, error: authError } =
+      await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      // Handle any authentication errors
-      if (authError) {
-        if (authError.message.includes("Invalid login credentials")) {
-          setError("Invalid email or password. Please try again.");
-        } else if (authError.message.includes("Email not confirmed")) {
-          setError("Please verify your email before signing in. Check your spam folder for the link.");
-        } else {
-          setError(authError.message);
-        }
-        setIsLoading(false);
-        return;
+    // Handle any authentication errors
+    if (authError) {
+      if (authError.message.includes("Invalid login credentials")) {
+        setError("Invalid email or password. Please try again.");
+      } else if (authError.message.includes("Email not confirmed")) {
+        setError(
+          "Please verify your email before signing in. Check your spam folder for the link."
+        );
+      } else {
+        setError(authError.message);
       }
-
-      if (!authData.user) {
-        setError("Login failed. An unknown error occurred.");
-        setIsLoading(false);
-        return;
-      }
-      
-      console.log("Login successful for:", authData.user.email);
-
-      // 2. Get the user's role directly from the authentication token's metadata
-      const userRole = authData.user.user_metadata?.role;
-      console.log("User role from token:", userRole);
-
-      // 3. Redirect based on the role
-      switch (userRole) {
-        case "superadmin":
-          router.push("/superadmin-dashboard");
-          break;
-        case "regional_admin":
-          router.push("/regional-admin-dashboard");
-          break;
-        case "admin":
-          router.push("/admin-dashboard");
-          break;
-        case "director":
-          router.push("/director-dashboard");
-          break;
-        case "doctor":
-          router.push("/doctor-dashboard");
-          break;
-        case "patient":
-          router.push("/dashboard");
-          break;
-        default:
-          setError("Your user role could not be determined. Please contact support.");
-          await supabase.auth.signOut(); // Log out user with unknown role
-          setIsLoading(false);
-      }
-    } catch (err) {
-      console.error("Login process error:", err);
-      setError("An unexpected error occurred. Please try again.");
       setIsLoading(false);
+      return;
     }
-  };
+
+    if (!authData.user) {
+      setError("Login failed. An unknown error occurred.");
+      setIsLoading(false);
+      return;
+    }
+
+    console.log("Login successful for:", authData.user.email);
+
+    // --- FIX: Fetch role from the public.users table ---
+    // 2. Get the user's role from your application's database
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("role")
+      .eq("user_id", authData.user.id)
+      .single();
+
+    if (userError || !userData) {
+      setError("Could not retrieve user role from the database.");
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      return;
+    }
+
+    const userRole = userData.role;
+    console.log("User role from database:", userRole);
+
+    // 3. Redirect based on the role fetched from your database
+    switch (userRole) {
+      case "superadmin":
+        router.push("/superadmin-dashboard");
+        break;
+      case "regional_admin":
+        router.push("/regional-admin-dashboard");
+        break;
+      case "admin":
+        router.push("/admin-dashboard");
+        break;
+      case "director":
+        router.push("/director-dashboard");
+        break;
+      case "doctor":
+        router.push("/doctor-dashboard");
+        break;
+      case "patient":
+        router.push("/dashboard");
+        break;
+      default:
+        setError(
+          "Your user role could not be determined. Please contact support."
+        );
+        await supabase.auth.signOut(); // Log out user with unknown role
+        setIsLoading(false);
+    }
+  } catch (err) {
+    console.error("Login process error:", err);
+    setError("An unexpected error occurred. Please try again.");
+    setIsLoading(false);
+  }
+};
+
 
   return (
     <Card className="w-full max-w-md">
